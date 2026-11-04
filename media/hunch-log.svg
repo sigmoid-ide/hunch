@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="781" height="338" viewBox="0 0 781 338" role="img" aria-label="A run recorded with hunch run, then hunch log showing four runs as a tree, each with its why, result, loss curve and verdict">
+<rect width="781" height="338" rx="12" fill="#0D1117"/>
+<path d="M0 12 a12 12 0 0 1 12 -12 h757 a12 12 0 0 1 12 12 v24 h-781 z" fill="#161B22"/>
+<circle cx="22" cy="18" r="6" fill="#FF5F57"/>
+<circle cx="42" cy="18" r="6" fill="#FEBC2E"/>
+<circle cx="62" cy="18" r="6" fill="#28C840"/>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace" font-size="14" fill="#E6EDF3" style="white-space: pre">
+<text x="390.5" y="23" text-anchor="middle" fill="#8B949E" font-size="12">~/my-model</text>
+<text x="24" y="72"><tspan fill="#8B949E">$ </tspan>hunch run -m "add cosine decay" -- python train.py</text>
+<text x="24" y="96" fill="#8B949E">hunch: run 20261114-0930-c8a7f3 finished after 41m 12s</text>
+<text x="24" y="136"><tspan fill="#8B949E">$ </tspan>hunch log</text>
+<text x="24" y="166" fill="#A594F9" font-size="11" font-weight="600" letter-spacing="1">TREE</text>
+<text x="92" y="166" fill="#A594F9" font-size="11" font-weight="600" letter-spacing="1">RUN</text>
+<text x="145" y="166" fill="#A594F9" font-size="11" font-weight="600" letter-spacing="1">WHY</text>
+<text x="303" y="166" fill="#A594F9" font-size="11" font-weight="600" letter-spacing="1">RESULT</text>
+<text x="461" y="166" fill="#A594F9" font-size="11" font-weight="600" letter-spacing="1">TREND</text>
+<text x="557" y="166" fill="#A594F9" font-size="11" font-weight="600" letter-spacing="1">VERDICT</text>
+<line x1="34" y1="191" x2="34" y2="293" stroke="#8B949E" stroke-width="2"/>
+<path d="M58 225 C 58 247, 34 241, 34 259" fill="none" stroke="#8B949E" stroke-width="2"/>
+<circle cx="34" cy="191" r="6.5" fill="#A594F9"/>
+<text x="92" y="196">a7f3</text>
+<text x="145" y="196">add cosine decay</text>
+<text x="303" y="196" fill="#E6EDF3">val_loss 2.30</text>
+<polyline points="461.0,181.0 471.3,188.5 481.6,192.3 491.9,194.6 502.1,195.9 512.4,196.4 522.7,196.8 533.0,197.0" fill="none" stroke="#A594F9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="557" y="181" width="51" height="21" rx="10.5" fill="#2EA043" fill-opacity="0.18" stroke="#2EA043"/><text x="582.6" y="196" text-anchor="middle" fill="#2EA043" font-size="12" font-weight="600">keep</text>
+<text x="625" y="196" fill="#8B949E">"best so far"</text>
+<circle cx="58" cy="225" r="6" fill="#0D1117" stroke="#F85149" stroke-width="2"/>
+<text x="92" y="230">c21e</text>
+<text x="145" y="230">try lr 6e-4</text>
+<text x="303" y="230" fill="#F85149">crashed, exit 1</text>
+<polyline points="461.0,227.1 471.3,229.6 481.6,230.6 491.9,231.0 502.1,229.2 512.4,225.0 522.7,219.6 533.0,215.0" fill="none" stroke="#F85149" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="557" y="215" width="51" height="21" rx="10.5" fill="#F85149" fill-opacity="0.18" stroke="#F85149"/><text x="582.6" y="230" text-anchor="middle" fill="#F85149" font-size="12" font-weight="600">drop</text>
+<circle cx="34" cy="259" r="6.5" fill="#A594F9"/>
+<text x="92" y="264">9b40</text>
+<text x="145" y="264">add warmup</text>
+<text x="303" y="264" fill="#E6EDF3">val_loss 2.32</text>
+<polyline points="461.0,249.0 471.3,255.7 481.6,259.5 491.9,262.3 502.1,263.8 512.4,264.4 522.7,264.8 533.0,265.0" fill="none" stroke="#A594F9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="557" y="249" width="51" height="21" rx="10.5" fill="#2EA043" fill-opacity="0.18" stroke="#2EA043"/><text x="582.6" y="264" text-anchor="middle" fill="#2EA043" font-size="12" font-weight="600">keep</text>
+<circle cx="34" cy="293" r="6" fill="#E6EDF3"/>
+<text x="92" y="298">3d1c</text>
+<text x="145" y="298">baseline</text>
+<text x="303" y="298" fill="#E6EDF3">val_loss 2.46</text>
+<polyline points="461.0,283.0 471.3,288.2 481.6,292.4 491.9,294.9 502.1,296.9 512.4,298.1 522.7,298.7 533.0,299.0" fill="none" stroke="#A594F9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g></svg>
