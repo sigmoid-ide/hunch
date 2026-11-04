@@ -150,8 +150,8 @@ that ended most recently, skipping runs still in progress, runs that lasted
 under 30 seconds and runs with the verdict `drop`. A parent must have started
 before its child.
 
-Runs that lasted under 30 seconds are "trivial": hidden from `hunch ls` and
-`hunch log` unless `--all` is given or another shown run came from them.
+Runs that lasted under 30 seconds are "trivial": hidden from `hunch log`
+unless `--all` is given or another shown run came from them.
 
 ## Project config.json
 

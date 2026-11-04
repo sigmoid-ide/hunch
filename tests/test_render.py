@@ -62,9 +62,9 @@ def test_sparkline():
     assert len(sparkline(list(range(100)))) == 8
 
 
-def test_show_and_ls_run_without_errors(store, capsys):
+def test_show_and_oneline_log_run_without_errors(store, capsys):
     make_run(store, "aaaa", start=0, why="baseline", metrics=[{"_step": 0, "val_loss": 1.0}])
-    assert hunch("ls") == 0
+    assert hunch("log", "--oneline") == 0
     assert hunch("show", "aaaa") == 0
     out = capsys.readouterr().out
     assert "baseline" in out and "val_loss 1" in out

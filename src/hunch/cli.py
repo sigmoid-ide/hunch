@@ -49,12 +49,9 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("command", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
     run.set_defaults(handler=cmd_run)
 
-    ls = commands.add_parser("ls", help="list recent runs")
-    ls.add_argument("-n", type=int, default=20, help="how many runs to show (default 20)")
-    ls.add_argument("--all", action="store_true", help="include runs that ended in under 30 seconds")
-    ls.set_defaults(handler=cmd_ls)
-
     log = commands.add_parser("log", help="show the tree of runs")
+    log.add_argument("--oneline", action="store_true", help="recent runs as a flat list, newest first")
+    log.add_argument("-n", type=int, default=20, help="with --oneline, how many runs to show (default 20)")
     log.add_argument("--all", action="store_true", help="include runs that ended in under 30 seconds")
     log.set_defaults(handler=cmd_log)
 
@@ -82,10 +79,11 @@ def _parser() -> argparse.ArgumentParser:
     link.add_argument("--from", dest="parent", required=True, metavar="RUN", help="the parent run, or 'none'")
     link.set_defaults(handler=cmd_link)
 
-    settings = commands.add_parser("set", help="change a project setting")
-    settings.add_argument("key", choices=["main-metric"])
-    settings.add_argument("value", help="a metric name, or 'auto' to pick it automatically")
-    settings.set_defaults(handler=cmd_set)
+    config = commands.add_parser("config", help="show or change a project setting")
+    config.add_argument("key", choices=["main-metric"])
+    config.add_argument("value", nargs="?", help="the new value; leave out to show the current one")
+    config.add_argument("--unset", action="store_true", help="go back to the default")
+    config.set_defaults(handler=cmd_config)
     return parser
 
 
@@ -123,19 +121,6 @@ def _can_ask() -> bool:
     return True
 
 
-def cmd_ls(args) -> int:
-    store = Store.find()
-    runs = store.runs()
-    if not runs:
-        print(EMPTY)
-        return 0
-    shown = visible(runs, args.all)
-    for line in ls_lines(list(reversed(shown))[: args.n], _view(store, runs)):
-        print(line)
-    _print_hidden(len(runs) - len(shown))
-    return 0
-
-
 def cmd_log(args) -> int:
     store = Store.find()
     runs = store.runs()
@@ -143,7 +128,9 @@ def cmd_log(args) -> int:
         print(EMPTY)
         return 0
     shown = visible(runs, args.all)
-    for line in log_lines(shown, _view(store, runs)):
+    view = _view(store, runs)
+    lines = ls_lines(list(reversed(shown))[: args.n], view) if args.oneline else log_lines(shown, view)
+    for line in lines:
         print(line)
     _print_hidden(len(runs) - len(shown))
     return 0
@@ -204,9 +191,12 @@ def cmd_link(args) -> int:
     return 0
 
 
-def cmd_set(args) -> int:
+def cmd_config(args) -> int:
+    """Like `git config`: no value shows the setting, a value sets it, --unset clears it."""
     store = Store.find()
-    value = None if args.value == "auto" else args.value
-    store.set_config("main_metric", value)
-    print(f"hunch: main metric is {'picked automatically' if value is None else value}")
+    if args.unset:
+        store.set_config("main_metric", None)
+    elif args.value is not None:
+        store.set_config("main_metric", args.value)
+    print(store.config().get("main_metric") or "(auto: the first metric with 'val' in its name, else the last one)")
     return 0

@@ -81,7 +81,10 @@ def test_main_metric_setting(store, capsys):
     make_run(store, "bbbb", start=10, metrics=[{"_step": 0, "train_loss": 1.0, "val_acc": 0.7}])
     assert store.resolve("aaaa").main_metric() == "acc"  # no "val" metric: the last one
     assert store.resolve("bbbb").main_metric() == "val_acc"
-    assert hunch("set", "main-metric", "loss") == 0
+    assert hunch("config", "main-metric", "loss") == 0
     assert store.config()["main_metric"] == "loss"
-    assert hunch("set", "main-metric", "auto") == 0
+    capsys.readouterr()
+    assert hunch("config", "main-metric") == 0
+    assert capsys.readouterr().out.strip() == "loss"
+    assert hunch("config", "main-metric", "--unset") == 0
     assert "main_metric" not in store.config()
