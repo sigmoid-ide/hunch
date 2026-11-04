@@ -20,7 +20,7 @@ Hunch is the first standalone piece of Sigmoid IDE, an open-source ML research I
 ## Install
 
 ```
-pip install hunch-ml
+pip install sigmoid-hunch
 ```
 
 Python 3.11 or newer. The command is `hunch` and the import is `import hunch`.

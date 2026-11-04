@@ -13,7 +13,7 @@ from importlib import metadata as _metadata
 from .api import Run, finish, init, log
 
 try:
-    __version__ = _metadata.version("hunch-ml")
+    __version__ = _metadata.version("sigmoid-hunch")
 except _metadata.PackageNotFoundError:
     __version__ = "0+unknown"
 

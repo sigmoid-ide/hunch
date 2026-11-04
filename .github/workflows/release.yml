@@ -2,7 +2,7 @@ name: release
 
 # Publishes to PyPI when a version tag such as v0.1.0 is pushed. Uses PyPI
 # trusted publishing, so no token is stored: register this repository and the
-# "pypi" environment as a trusted publisher of hunch-ml on pypi.org first.
+# "pypi" environment as a trusted publisher of sigmoid-hunch on pypi.org first.
 
 on:
   push:

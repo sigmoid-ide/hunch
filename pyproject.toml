@@ -1,5 +1,5 @@
 [project]
-name = "hunch-ml"
+name = "sigmoid-hunch"
 version = "0.1.0"
 description = "A zero-config experiment journal for ML research: every run keeps its code, config, environment and the reason you ran it, as plain files."
 readme = "README.md"
