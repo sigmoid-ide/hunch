@@ -1,0 +1,333 @@
+"""Turning runs into text: the `ls` list, the `log` tree and the `show` page."""
+
+from __future__ import annotations
+
+import math
+import shlex
+from collections import Counter
+from pathlib import Path
+
+from .runner import format_duration
+from .store import RunRecord, downsample, read_json
+
+RAMP = "▁▂▃▄▅▆▇█"
+RAMP_ASCII = "_.-:=+*#"
+MARKERS = {"finished": "*", "crashed": "!", "killed": "!", "lost": "?", "running": ">"}
+WHY_WIDTH = 36
+NOTE_WIDTH = 40
+
+
+class View:
+    """Settings shared by everything that prints runs."""
+
+    def __init__(self, runs: list[RunRecord], main_metric: str | None = None, unicode: bool = True):
+        self.by_id = {run.id: run for run in runs}
+        self.short = short_ids([run.id for run in runs])
+        self.main_metric = main_metric
+        self.unicode = unicode
+
+
+def can_encode(stream, text: str) -> bool:
+    try:
+        text.encode(getattr(stream, "encoding", None) or "ascii")
+        return True
+    except (UnicodeEncodeError, LookupError):
+        return False
+
+
+def short_ids(ids: list[str]) -> dict[str, str]:
+    """The shortest unique ending of each id: 4 characters, then longer."""
+    lengths = (4, 6, 11)
+    counts = {n: Counter(i[-n:] for i in ids) for n in lengths}
+    out = {}
+    for run_id in ids:
+        out[run_id] = next((run_id[-n:] for n in lengths if counts[n][run_id[-n:]] == 1), run_id)
+    return out
+
+
+def truncate(text: str, width: int) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= width else text[: width - 3] + "..."
+
+
+def format_value(value) -> str:
+    if isinstance(value, float):
+        return f"{value:.4g}"
+    return truncate(str(value), 24)
+
+
+def sparkline(values: list[float], unicode: bool = True, width: int = 8) -> str:
+    points = downsample([float(v) for v in values], width)
+    finite = [v for v in points if math.isfinite(v)]
+    if not finite:
+        return ""
+    ramp = RAMP if unicode else RAMP_ASCII
+    low, high = min(finite), max(finite)
+    chars = []
+    for value in points:
+        if not math.isfinite(value):
+            chars.append("!")
+        elif high == low:
+            chars.append(ramp[len(ramp) // 2])
+        else:
+            chars.append(ramp[round((value - low) / (high - low) * (len(ramp) - 1))])
+    return "".join(chars)
+
+
+def marker(run: RunRecord) -> str:
+    return "x" if run.verdict == "drop" else MARKERS.get(run.status, "*")
+
+
+def visible(runs: list[RunRecord], show_all: bool) -> list[RunRecord]:
+    """Hides trivial runs, except those that other shown runs came from."""
+    if show_all:
+        return runs
+    by_id = {run.id: run for run in runs}
+    keep = {run.id for run in runs if not run.trivial}
+    pending = list(keep)
+    while pending:
+        parent = by_id[pending.pop()].parent
+        if parent in by_id and parent not in keep:
+            keep.add(parent)
+            pending.append(parent)
+    return [run for run in runs if run.id in keep]
+
+
+def _cells(run: RunRecord, view: View) -> list[str]:
+    """id, why, result, sparkline, verdict and conclusion."""
+    key = run.main_metric(view.main_metric)
+    value = run.final_metrics().get(key) if key else None
+    metric = f"{key} {format_value(value)}" if key and value is not None else ""
+    status = run.status
+    if status == "finished":
+        result = metric
+    else:
+        if status == "crashed":
+            code = (run.end or {}).get("exit_code")
+            state = f"crashed, exit {code}" if code is not None else "crashed"
+        elif status == "running":
+            state = f"running {format_duration(run.duration)}"
+        else:
+            state = status
+        result = f"{state}; {metric}" if metric else state
+    tail = []
+    if run.verdict:
+        tail.append(run.verdict)
+    if run.conclusion:
+        tail.append(f'"{truncate(run.conclusion, NOTE_WIDTH)}"')
+    elif status == "finished" and not run.verdict:
+        tail.append("(no conclusion yet)")
+    spark = sparkline(run.spark(key), view.unicode) if key else ""
+    why = truncate(run.why, WHY_WIDTH) if run.why else "(no why)"
+    return [view.short[run.id], why, result, spark, "  ".join(tail)]
+
+
+def _table(rows: list[list[str]]) -> list[str]:
+    """Aligns columns; the last column is not padded."""
+    if not rows:
+        return []
+    widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]) - 1)]
+    return ["  ".join(cell.ljust(widths[i]) if i < len(widths) else cell for i, cell in enumerate(row)).rstrip() for row in rows]
+
+
+def ls_lines(runs: list[RunRecord], view: View) -> list[str]:
+    rows = []
+    for run in runs:
+        sid, why, result, spark, tail = _cells(run, view)
+        rows.append([marker(run), sid, f"{run.started:%b %d %H:%M}", why, result, spark, tail])
+    return _table(rows)
+
+
+def graph_order(runs: list[RunRecord]) -> tuple[list[RunRecord], dict[str, str | None]]:
+    """Orders runs like `git log --graph --topo-order`: each run's descendants
+    come right above it, newest branch first. Also returns each run's parent
+    among the shown runs (None for a root)."""
+    by_id = {run.id: run for run in runs}
+    parent_of: dict[str, str | None] = {}
+    children: dict[str, list[RunRecord]] = {run.id: [] for run in runs}
+    roots = []
+    for run in runs:
+        parent = run.parent
+        if parent in by_id and by_id[parent].started < run.started:
+            parent_of[run.id] = parent
+            children[parent].append(run)
+        else:
+            parent_of[run.id] = None
+            roots.append(run)
+
+    latest = {}  # newest start time in each run's subtree
+    for run in sorted(runs, key=lambda r: r.started, reverse=True):
+        latest[run.id] = max([run.started, *(latest[c.id] for c in children[run.id])])
+
+    order = []
+    stack = [(run, False) for run in sorted(roots, key=lambda r: latest[r.id])]
+    while stack:
+        run, expanded = stack.pop()
+        if expanded:
+            order.append(run)
+            continue
+        stack.append((run, True))
+        stack.extend((child, False) for child in sorted(children[run.id], key=lambda r: latest[r.id]))
+    return order, parent_of
+
+
+def graph_rows(order: list[RunRecord], parent_of: dict[str, str | None]) -> list[tuple[str, RunRecord | None]]:
+    """The graph column: lanes of `|`, run markers, and `/` where branches join."""
+    lanes: list[str] = []
+    rows: list[tuple[str, RunRecord | None]] = []
+    for run in order:
+        waiting = [i for i, wanted in enumerate(lanes) if wanted == run.id]
+        if waiting:
+            col = waiting[0]
+            for lane in reversed(waiting[1:]):
+                rows.append((" ".join("|" * lane) + "/", None))
+                lanes.pop(lane)
+        else:
+            lanes.append(run.id)
+            col = len(lanes) - 1
+        rows.append((" ".join(marker(run) if i == col else "|" for i in range(len(lanes))), run))
+        parent = parent_of[run.id]
+        if parent:
+            lanes[col] = parent
+        else:
+            lanes.pop(col)
+            if not lanes and run is not order[-1]:
+                rows.append(("", None))  # a blank line between unrelated trees
+    return rows
+
+
+def log_lines(runs: list[RunRecord], view: View) -> list[str]:
+    order, parent_of = graph_order(runs)
+    rows = graph_rows(order, parent_of)
+    cells = [[f"{run.started:%b %d}", *_cells(run, view)] for _, run in rows if run is not None]
+    table = iter(_table([[c[1], c[0], *c[2:]] for c in cells]))
+    width = max((len(graph) for graph, _ in rows), default=0)
+    return [graph.ljust(width) + "  " + next(table) if run else graph for graph, run in rows]
+
+
+def show_lines(run: RunRecord, view: View, root: Path) -> list[str]:
+    meta = run.meta
+    code = meta.get("git") or {}
+    env = read_json(run.dir / "env.json", {})
+    config = read_json(run.dir / "config.json", {})
+    end = run.end or {}
+    lines: list[str] = []
+
+    def add(label: str, text: str) -> None:
+        lines.append(f"{label:<11}{text}")
+
+    add("run", f"{run.id}  ({view.short.get(run.id, run.id)})")
+    status = run.status
+    duration = format_duration(run.duration)
+    if status == "finished":
+        add("status", f"finished in {duration}")
+    elif status == "running":
+        add("status", f"running for {duration}")
+    elif status == "lost":
+        add("status", "lost: no end was recorded and the heartbeat stopped")
+    else:
+        code_text = f", exit {end.get('exit_code')}" if end.get("exit_code") is not None else ""
+        add("status", f"{status} after {duration}{code_text}")
+    host = meta.get("host") or {}
+    where = host.get("hostname", "?") + (f", SLURM job {host['slurm_job_id']}" if host.get("slurm_job_id") else "")
+    add("started", f"{run.started:%Y-%m-%d %H:%M} on {where}")
+    add("why", run.why or "(none)")
+    if run.verdict or run.conclusion:
+        add("verdict", "  ".join(filter(None, [run.verdict, f'"{run.conclusion}"' if run.conclusion else None])))
+    if run.parent:
+        parent = view.by_id.get(run.parent)
+        label = f"{view.short.get(run.parent, run.parent)}  {parent.why or ''}".rstrip() if parent else run.parent
+        how = " (set by hand)" if any(e.get("kind") == "parent" for e in run.notes) else (
+            " (default: last run on this line)" if meta.get("parent_source") == "default" else "")
+        add("parent", label + how)
+    add("line", run.line or "(none)")
+    add("command", shlex.join(meta.get("command") or []))
+
+    if code:
+        commit = (code.get("commit") or "")[:9] or "no commits yet"
+        text = f"{commit} on {code.get('branch') or 'detached HEAD'}"
+        files, plus, minus = patch_stats(run.dir / "code.patch")
+        if files:
+            text += f"; uncommitted: {plural(files, 'file')}, +{plus} -{minus}"
+        if code.get("untracked"):
+            text += f"; untracked copied: {len(code['untracked'])}"
+        if code.get("untracked_skipped_count"):
+            text += f"; untracked too big or binary: {code['untracked_skipped_count']}"
+        add("code", text)
+    else:
+        add("code", "not in a git repository, so the code was not recorded")
+
+    values = flatten(config.get("values") or {})
+    if values:
+        add("config", truncate(", ".join(f"{k}={format_value(v)}" for k, v in values.items()), 200))
+
+    if env.get("error"):
+        add("env", f"{env.get('executable', '?')}: {env['error']}")
+    else:
+        text = f"Python {env.get('python', '?')} ({env.get('executable', '?')})"
+        torch = env.get("torch") or {}
+        if torch.get("version"):
+            text += f"; torch {torch['version']}" + (f", CUDA {torch['cuda']}" if torch.get("cuda") else "")
+        if env.get("packages"):
+            text += f"; {plural(len(env['packages']), 'package')}"
+        add("env", text)
+    if env.get("gpus"):
+        names = Counter(gpu["name"] for gpu in env["gpus"])
+        driver = env["gpus"][0].get("driver")
+        add("gpu", ", ".join(f"{n} x {name}" if n > 1 else name for name, n in names.items()) + f"; driver {driver}")
+
+    metrics = run.final_metrics()
+    if metrics:
+        key = run.main_metric(view.main_metric)
+        ordered = ([key] if key in metrics else []) + [k for k in run.metric_keys() if k != key and k in metrics]
+        parts = []
+        for k in ordered[:8]:
+            spark = sparkline(run.spark(k), view.unicode)
+            parts.append(f"{k} {format_value(metrics[k])}" + (f" {spark}" if spark else ""))
+        if len(ordered) > 8:
+            parts.append(f"(+{len(ordered) - 8} more)")
+        add("metrics", parts[0])
+        for part in parts[1:]:
+            add("", part)
+
+    for event in run.notes:
+        value = event.get("value")
+        shown = f'"{value}"' if isinstance(value, str) and event.get("kind") != "verdict" else str(value)
+        add("history", f"{event.get('at', '')[:16].replace('T', ' ')}  {event.get('kind')}: {shown}")
+    try:
+        folder = run.dir.relative_to(root)
+    except ValueError:
+        folder = run.dir
+    add("folder", str(folder))
+    return lines
+
+
+def plural(count: int, word: str) -> str:
+    return f"{count} {word}{'' if count == 1 else 's'}"
+
+
+def patch_stats(path: Path) -> tuple[int, int, int]:
+    try:
+        data = path.read_bytes()
+    except FileNotFoundError:
+        return 0, 0, 0
+    files = plus = minus = 0
+    for line in data.splitlines():
+        if line.startswith(b"diff --git"):
+            files += 1
+        elif line.startswith(b"+") and not line.startswith(b"+++"):
+            plus += 1
+        elif line.startswith(b"-") and not line.startswith(b"---"):
+            minus += 1
+    return files, plus, minus
+
+
+def flatten(values: dict, prefix: str = "") -> dict:
+    out = {}
+    for key, value in values.items():
+        name = f"{prefix}{key}"
+        if isinstance(value, dict) and value:
+            out.update(flatten(value, name + "."))
+        else:
+            out[name] = value
+    return out

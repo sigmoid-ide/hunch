@@ -1,0 +1,41 @@
+[project]
+name = "hunch-ml"
+version = "0.1.0"
+description = "A zero-config experiment journal for ML research: every run keeps its code, config, environment and the reason you ran it, as plain files."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Usmon N", email = "rainxch.dev@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = []
+keywords = ["machine-learning", "experiment-tracking", "reproducibility", "research", "mlops"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.scripts]
+hunch = "hunch.cli:main"
+
+[project.urls]
+Repository = "https://github.com/sigmoid-ide/hunch"
+Issues = "https://github.com/sigmoid-ide/hunch/issues"
+Format = "https://github.com/sigmoid-ide/hunch/blob/main/docs/format.md"
+
+[build-system]
+requires = ["uv_build>=0.11.16,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "hunch"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]

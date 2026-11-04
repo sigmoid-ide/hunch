@@ -1,0 +1,23 @@
+name: release
+
+# Publishes to PyPI when a version tag such as v0.1.0 is pushed. Uses PyPI
+# trusted publishing, so no token is stored: register this repository and the
+# "pypi" environment as a trusted publisher of hunch-ml on pypi.org first.
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv sync
+      - run: uv run pytest -q
+      - run: uv build
+      - run: uv publish
