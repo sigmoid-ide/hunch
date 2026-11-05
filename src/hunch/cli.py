@@ -15,6 +15,7 @@ from .runner import run_command
 from .store import HunchError, Store
 
 EMPTY = "no runs yet. Record one with: hunch run -- python train.py"
+WHY_ENV = "HUNCH_WHY"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -46,7 +47,7 @@ def _parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(metavar="COMMAND")
 
     run = commands.add_parser("run", help="run a command and record it", usage="hunch run [-m WHY] [--from RUN] -- COMMAND ...")
-    run.add_argument("-m", "--why", help="why you are running this (asked for if left out in a terminal)")
+    run.add_argument("-m", "--why", help="why you are running this (default: $HUNCH_WHY, else asked for in a terminal)")
     run.add_argument("--from", dest="parent", metavar="RUN", help="the run this one builds on (default: the last run on this branch)")
     run.add_argument("command", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
     run.set_defaults(handler=cmd_run)
@@ -110,7 +111,10 @@ def cmd_run(args) -> int:
     store = Store.find()
     parent = store.resolve(args.parent).id if args.parent else None
     why = args.why
-    if why is None and _can_ask():
+    if why is None and WHY_ENV in os.environ:
+        # Editors pass the why here, so it never has to survive a shell's quoting.
+        why = os.environ[WHY_ENV].strip() or None
+    elif why is None and _can_ask():
         try:
             why = input("why? (Enter to skip) ").strip() or None
         except EOFError:

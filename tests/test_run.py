@@ -96,6 +96,21 @@ def test_parallel_runs_do_not_collide(repo):
     assert all(r.status == "finished" and len(r.rows()) == 5 for r in runs)
 
 
+def test_the_why_can_come_from_the_environment_untouched_by_any_shell(repo, monkeypatch):
+    why = "don't decay the lr; \"quoted\" & $HOME %PATH% !x"
+    monkeypatch.setenv("HUNCH_WHY", why)
+    assert wrap("train.py") == 0
+    assert only_run(repo).why == why
+    assert wrap("train.py", "-m", "explicit wins") == 0
+    assert max(Store.find(repo).runs(), key=lambda r: r.started).why == "explicit wins"
+
+
+def test_an_empty_why_in_the_environment_records_none_without_asking(repo, monkeypatch):
+    monkeypatch.setenv("HUNCH_WHY", "  ")
+    assert wrap("train.py") == 0
+    assert only_run(repo).why is None
+
+
 def test_only_allowlisted_environment_variables_are_recorded(repo, monkeypatch):
     monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0")
     monkeypatch.setenv("SECRET_TOKEN", "do-not-record")

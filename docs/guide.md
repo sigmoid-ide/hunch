@@ -8,6 +8,7 @@ hunch run --from 9b40 -m "same, longer warmup" -- python train.py
 ```
 
 - Leave out `-m` in a terminal and Hunch asks why (Enter skips). It never asks in scripts, background jobs or cluster jobs.
+- Without `-m`, the why is taken from `HUNCH_WHY` when it is set. Editors use it, so the why never passes through a shell.
 - `--from` picks the parent run. Without it, the parent is the last run on the same git branch that ended,
   skipping runs still in progress, quick crashes and runs you dropped.
 
