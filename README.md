@@ -51,11 +51,12 @@ Same names as W&B: `import hunch as wandb` works.
 
 No server, no account, no telemetry, no dependencies. Runs are plain JSON in `.hunch/`.
 
-[Guide](https://github.com/sigmoid-ide/hunch/blob/main/docs/guide.md) · [File format](https://github.com/sigmoid-ide/hunch/blob/main/docs/format.md) · [Contributing](https://github.com/sigmoid-ide/hunch/blob/main/CONTRIBUTING.md)
+[Guide](https://github.com/sigmoid-ide/hunch/blob/main/docs/guide.md) · [File format](https://github.com/sigmoid-ide/hunch/blob/main/docs/format.md) · [Questions](https://github.com/sigmoid-ide/hunch/discussions/categories/q-a) · [Contributing](https://github.com/sigmoid-ide/hunch/blob/main/CONTRIBUTING.md)
 
 ## Share it
 
-Saved you a "what did I run last month?" moment? Tell one person.
+Saved you a "what did I run last month?" moment? Tell one person, or post your `hunch log` in
+[Show and tell](https://github.com/sigmoid-ide/hunch/discussions/categories/show-and-tell).
 
 <p align="center">
   <a href="https://x.com/intent/post?text=Hunch%3A%20every%20hunch%2C%20tracked.%20Every%20ML%20run%20keeps%20its%20code%2C%20config%2C%20environment%20and%20why.%20pip%20install%20sigmoid-hunch&url=https%3A%2F%2Fgithub.com%2Fsigmoid-ide%2Fhunch"><img src="https://img.shields.io/badge/share_on-X-000000?style=for-the-badge&logo=x" alt="Share on X" /></a>
