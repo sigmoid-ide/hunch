@@ -11,6 +11,7 @@
 <img src="https://img.shields.io/badge/python-3.11%2B-6E56CF?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11 or newer" />
 <img src="https://img.shields.io/badge/dependencies-none-6E56CF?style=for-the-badge" alt="No dependencies" />
 <a href="https://github.com/sigmoid-ide/hunch/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-6E56CF?style=for-the-badge" alt="License: Apache-2.0" /></a>
+<a href="https://github.com/sigmoid-ide/hunch-jetbrains"><img src="https://img.shields.io/badge/PyCharm-plugin-6E56CF?style=for-the-badge&logo=pycharm&logoColor=white" alt="PyCharm plugin" /></a>
 
 </div>
 
@@ -50,6 +51,15 @@ hunch.log({"val_loss": val_loss}, step=step)
 ```
 
 Same names as W&B: `import hunch as wandb` works.
+
+## In your editor
+
+<a href="https://github.com/sigmoid-ide/hunch-jetbrains"><img src="https://raw.githubusercontent.com/sigmoid-ide/hunch-jetbrains/main/media/marketplace/01-runs.png" width="100%" alt="The Hunch tool window in PyCharm: milestones, the tree of runs with their metric curves and conclusions, and one run's details" /></a>
+
+**[Hunch for PyCharm](https://github.com/sigmoid-ide/hunch-jetbrains)**: your runs as a tree, keep or drop them,
+compare any two in the diff viewer, and start runs with one click. In review on JetBrains Marketplace.
+
+**VS Code, Cursor and Windsurf**: an extension is on the way.
 
 ## Your disk, your files
 
