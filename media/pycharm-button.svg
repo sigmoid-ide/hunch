@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="226" height="44" viewBox="0 0 226 44" role="img" aria-label="Get the PyCharm plugin">
+  <rect width="226" height="44" rx="22" fill="#6E56CF"/>
+  <g transform="translate(9 9.5) scale(0.16)">
+    <path d="M58 34 V 126" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" fill="none"/>
+    <path d="M58 94 C 58 62, 104 60, 104 94 V 126" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" fill="none"/>
+    <circle cx="58" cy="34" r="11" fill="#FFFFFF"/>
+    <circle cx="58" cy="126" r="11" fill="#FFFFFF"/>
+    <circle cx="104" cy="126" r="13" fill="#FFD166"/>
+  </g>
+  <text x="44" y="27.5" fill="#FFFFFF" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" font-weight="600">Get the PyCharm plugin</text>
+</svg>
