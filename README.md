@@ -26,6 +26,7 @@ pip install sigmoid-hunch
 
 <p>
   <a href="https://github.com/sigmoid-ide/hunch-jetbrains"><img src="https://raw.githubusercontent.com/sigmoid-ide/hunch/main/media/pycharm-button.svg" height="44" alt="Get the PyCharm plugin" /></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=sigmoid-ide.hunch"><img src="https://raw.githubusercontent.com/sigmoid-ide/hunch/main/media/vscode-button.svg" height="44" alt="Get the VS Code extension" /></a>
 </p>
 
 ## If you know git, you know Hunch
@@ -66,7 +67,8 @@ Same names as W&B: `import hunch as wandb` works.
 **[Hunch for PyCharm](https://github.com/sigmoid-ide/hunch-jetbrains)**: your runs as a tree, keep or drop them,
 compare any two in the diff viewer, and start runs with one click. In review on JetBrains Marketplace.
 
-**VS Code, Cursor and Windsurf**: an extension is on the way.
+**[Hunch for VS Code](https://marketplace.visualstudio.com/items?itemName=sigmoid-ide.hunch)**: the same in VS Code, one click away
+in the Activity Bar. For Cursor, Windsurf and VSCodium, it is coming to Open VSX.
 
 ## Your disk, your files
 
