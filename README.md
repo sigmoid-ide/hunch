@@ -44,13 +44,19 @@ Hunch keeps all twenty, each with its settings and results.
 
 ## In your code
 
+`hunch run` already saves the code, command and environment. Add two lines and Hunch also tracks your
+settings and metrics, so you can see what changed between runs and how each one trained:
+
 ```python
 import hunch
 
-hunch.init(config=args, why="warmup to fix loss spikes")
-hunch.log({"val_loss": val_loss}, step=step)
+hunch.init(config=args)                           # your settings: argparse args, a dict or a dataclass
+for step in range(steps):
+    ...
+    hunch.log({"val_loss": val_loss}, step=step)  # your metrics, drawn as curves
 ```
 
+Running `python train.py` without `hunch run`? `hunch.init()` records the run on its own; add `why="..."` to say why.
 Same names as W&B: `import hunch as wandb` works.
 
 ## In your editor
