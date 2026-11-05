@@ -36,6 +36,9 @@ pip install sigmoid-hunch
 | `git notes add` | `hunch note a7f3 "helps" --keep` |
 | `git config` | `hunch config main-metric val_loss` |
 
+**How is it different from git?** Git tracks what you changed. Hunch tracks what you tried, and what happened.
+Run the same code 20 times with different learning rates: git sees one commit, Hunch sees 20 experiments with their results.
+
 ## In your code
 
 ```python
