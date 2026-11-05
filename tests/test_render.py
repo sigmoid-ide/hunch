@@ -34,14 +34,20 @@ def test_unrelated_trees_are_separated(store):
     assert "bbbb" in out[0] and "aaaa" in out[2]
 
 
-def test_trivial_runs_are_hidden_unless_something_builds_on_them(store, capsys):
-    quick = make_run(store, "quik", start=0, duration=3).name
-    make_run(store, "typo", start=5, duration=2)
+def test_quick_crashes_are_hidden_unless_something_builds_on_them(store, capsys):
+    quick = make_run(store, "quik", start=0, duration=3, status="crashed").name
+    make_run(store, "typo", start=5, duration=2, status="crashed")
     make_run(store, "real", start=10, parent=quick)
     shown = {r.id[-4:] for r in visible(store.runs(), show_all=False)}
     assert shown == {"quik", "real"}
     assert hunch("log") == 0
-    assert "1 trivial run hidden" in capsys.readouterr().out
+    assert "1 quick crash hidden" in capsys.readouterr().out
+
+
+def test_quick_runs_that_finish_are_shown_and_can_be_parents(store):
+    make_run(store, "fast", start=0, duration=2)  # a study script that takes seconds
+    assert {r.id[-4:] for r in visible(store.runs(), show_all=False)} == {"fast"}
+    assert store.default_parent("main") == store.resolve("fast").id
 
 
 def test_log_shows_metric_verdict_and_missing_conclusions(store):

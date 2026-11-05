@@ -52,7 +52,7 @@ def _parser() -> argparse.ArgumentParser:
     log = commands.add_parser("log", help="show the tree of runs")
     log.add_argument("--oneline", action="store_true", help="recent runs as a flat list, newest first")
     log.add_argument("-n", type=int, default=20, help="with --oneline, how many runs to show (default 20)")
-    log.add_argument("--all", action="store_true", help="include runs that ended in under 30 seconds")
+    log.add_argument("--all", action="store_true", help="include quick crashes (runs that failed in under 30 seconds)")
     log.set_defaults(handler=cmd_log)
 
     show = commands.add_parser("show", help="show everything about one run")
@@ -138,7 +138,7 @@ def cmd_log(args) -> int:
 
 def _print_hidden(count: int) -> None:
     if count:
-        print(f"  {count} trivial run{'s' if count != 1 else ''} hidden (--all to show)")
+        print(f"  {count} quick crash{'es' if count != 1 else ''} hidden (--all to show)")
 
 
 def cmd_show(args) -> int:

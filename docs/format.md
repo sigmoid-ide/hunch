@@ -146,12 +146,13 @@ The latest event of each kind wins.
 ## Lineage
 
 When a run starts without `--from`, its parent is the run on the same line
-that ended most recently, skipping runs still in progress, runs that lasted
-under 30 seconds and runs with the verdict `drop`. A parent must have started
-before its child.
+that ended most recently, skipping runs still in progress, trivial runs and
+runs with the verdict `drop`. A parent must have started before its child.
 
-Runs that lasted under 30 seconds are "trivial": hidden from `hunch log`
-unless `--all` is given or another shown run came from them.
+Runs whose status is not `"finished"` and that lasted under 30 seconds are
+"trivial" (typos, instant crashes): hidden from `hunch log` unless `--all` is
+given or another shown run came from them. Quick runs that finished are not
+trivial.
 
 ## Project config.json
 

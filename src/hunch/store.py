@@ -212,7 +212,11 @@ class RunRecord:
 
     @property
     def trivial(self) -> bool:
-        return self.end is not None and (self.end.get("duration") or 0) < TRIVIAL_SECONDS
+        """A quick crash or interrupt, such as a typo. Quick runs that finished count:
+        study scripts often take seconds."""
+        if self.end is None or self.end.get("status", "finished") == "finished":
+            return False
+        return (self.end.get("duration") or 0) < TRIVIAL_SECONDS
 
     def _latest_note(self, kind: str):
         for event in reversed(self.notes):

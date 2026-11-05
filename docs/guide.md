@@ -9,7 +9,7 @@ hunch run --from 9b40 -m "same, longer warmup" -- python train.py
 
 - Leave out `-m` in a terminal and Hunch asks why (Enter skips). It never asks in scripts, background jobs or cluster jobs.
 - `--from` picks the parent run. Without it, the parent is the last run on the same git branch that ended,
-  skipping runs still in progress, runs under 30 seconds and runs you dropped.
+  skipping runs still in progress, quick crashes and runs you dropped.
 
 In code, `hunch.init()` records the config, metrics and exact interpreter. Inside `hunch run` it joins that run.
 
@@ -29,7 +29,7 @@ In distributed training only rank 0 records (`RANK`, `OMPI_COMM_WORLD_RANK`, `PM
 ```
 hunch log                    the tree of runs
 hunch log --oneline -n 50    a flat list, newest first
-hunch log --all              include runs under 30 seconds
+hunch log --all              include quick crashes (failed in under 30 seconds)
 hunch show a7f3              one run in full
 hunch diff 9b40 a7f3         code, config, environment and metric changes
 hunch diff 9b40 a7f3 --code  the full code diff

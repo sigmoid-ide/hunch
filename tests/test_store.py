@@ -15,7 +15,7 @@ def run_id(store, short):
 def test_default_parent_is_the_last_ended_run_on_the_line(store):
     make_run(store, "aaaa", start=0)
     make_run(store, "bbbb", start=10)
-    make_run(store, "cccc", start=20, duration=5)  # trivial
+    make_run(store, "cccc", start=20, duration=5, status="crashed")  # a quick crash
     make_run(store, "dddd", start=30, notes=[("verdict", "drop")])
     make_run(store, "eeee", start=40, line="other")
     make_run(store, "ffff", start=50, status=None)  # still running
