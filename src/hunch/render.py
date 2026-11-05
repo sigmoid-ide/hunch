@@ -243,19 +243,18 @@ def show_lines(run: RunRecord, view: View, root: Path) -> list[str]:
     add("line", run.line or "(none)")
     add("command", shlex.join(meta.get("command") or []))
 
-    if code:
-        commit = (code.get("commit") or "")[:9] or "no commits yet"
-        text = f"{commit} on {code.get('branch') or 'detached HEAD'}"
-        files, plus, minus = patch_stats(run.dir / "code.patch")
-        if files:
-            text += f"; uncommitted: {plural(files, 'file')}, +{plus} -{minus}"
-        if code.get("untracked"):
-            text += f"; untracked copied: {len(code['untracked'])}"
-        if code.get("untracked_skipped_count"):
-            text += f"; untracked too big or binary: {code['untracked_skipped_count']}"
+    manifest = read_json(run.dir / "files.json")
+    if manifest is not None:
+        text = f"{plural(len(manifest['files']), 'file')} saved ({format_bytes(manifest['bytes'])})"
+        if manifest.get("skipped_count"):
+            text += f"; {manifest['skipped_count']} too big or binary, not saved"
         add("code", text)
     else:
-        add("code", "not in a git repository, so the code was not recorded")
+        add("code", "not saved (recorded before Hunch 0.2)")
+    if code:
+        commit = (code.get("commit") or "")[:9] or "no commits yet"
+        dirty = ", with uncommitted changes" if code.get("dirty") else ""
+        add("git", f"{commit} on {code.get('branch') or 'detached HEAD'}{dirty}")
 
     values = flatten(config.get("values") or {})
     if values:
@@ -306,20 +305,12 @@ def plural(count: int, word: str) -> str:
     return f"{count} {word}{'' if count == 1 else 's'}"
 
 
-def patch_stats(path: Path) -> tuple[int, int, int]:
-    try:
-        data = path.read_bytes()
-    except FileNotFoundError:
-        return 0, 0, 0
-    files = plus = minus = 0
-    for line in data.splitlines():
-        if line.startswith(b"diff --git"):
-            files += 1
-        elif line.startswith(b"+") and not line.startswith(b"+++"):
-            plus += 1
-        elif line.startswith(b"-") and not line.startswith(b"---"):
-            minus += 1
-    return files, plus, minus
+def format_bytes(count: int) -> str:
+    if count < 1024:
+        return f"{count} B"
+    if count < 1024 * 1024:
+        return f"{count / 1024:.1f} KB"
+    return f"{count / 1024 / 1024:.1f} MB"
 
 
 def flatten(values: dict, prefix: str = "") -> dict:

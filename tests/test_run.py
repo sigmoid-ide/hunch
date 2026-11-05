@@ -6,6 +6,7 @@ import sys
 from conftest import hunch, wrap
 
 from hunch.gitinfo import strip_credentials
+from hunch.snapshot import read_object
 from hunch.store import Store
 
 
@@ -15,10 +16,18 @@ def only_run(root):
     return runs[0]
 
 
+def saved_files(run) -> dict[str, bytes]:
+    """The files in a run's code snapshot, as they were when it started."""
+    objects = run.dir.parent.parent / "objects"
+    files = json.loads((run.dir / "files.json").read_text())["files"]
+    return {path: read_object(objects, entry["sha"]) for path, entry in files.items()}
+
+
 def test_wrapper_records_code_config_env_metrics_and_output(repo):
     (repo / "train.py").write_text((repo / "train.py").read_text() + "# tweak\n")
     (repo / "notes.txt").write_text("small untracked text")
     (repo / "big.txt").write_text("x" * 200_000)
+    (repo / "huge.txt").write_text("x" * 2_000_000)
     (repo / "weights.bin").write_bytes(b"\0\1\2")
 
     assert wrap("train.py --lr 0.2", "-m", "try a higher lr") == 0
@@ -29,9 +38,12 @@ def test_wrapper_records_code_config_env_metrics_and_output(repo):
     assert run.line == "main"
     assert run.meta["source"] == "wrapper"
     assert run.meta["git"]["commit"] and run.meta["git"]["dirty"]
-    assert b"+# tweak" in (run.dir / "code.patch").read_bytes()
-    assert (run.dir / "untracked" / "notes.txt").read_text() == "small untracked text"
-    assert set(run.meta["git"]["untracked_skipped"]) == {"big.txt", "weights.bin"}
+    files = saved_files(run)
+    assert files["train.py"] == (repo / "train.py").read_bytes()  # including the uncommitted edit
+    assert b"# tweak" in files["train.py"]
+    assert files["notes.txt"] == b"small untracked text"
+    assert len(files["big.txt"]) == 200_000
+    assert set(json.loads((run.dir / "files.json").read_text())["skipped"]) == {"huge.txt", "weights.bin"}
     config = json.loads((run.dir / "config.json").read_text())
     assert config["values"]["lr"] == 0.2
     assert config["args"][1:] == ["train.py", "--lr", "0.2"]

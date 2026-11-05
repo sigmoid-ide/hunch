@@ -1,4 +1,4 @@
-# The Hunch on-disk format, version 1
+# The Hunch on-disk format, version 2
 
 Hunch keeps everything in plain files, so people, scripts, coding agents and
 other tools can read runs without Hunch installed. This document is the
@@ -10,12 +10,12 @@ contract: anything written here is safe to rely on.
 <project>/.hunch/
   .gitignore              "*": the folder ignores itself, so your repo is never touched
   config.json             project settings
+  objects/ab/cdef...      every saved file, once, as a git blob object
   runs/<run-id>/
     run.json              written at start
+    files.json            written at start: the run's code snapshot
     config.json           written at start
     env.json              written at start
-    code.patch            written at start, only when there are uncommitted changes
-    untracked/            written at start, only when small untracked text files exist
     metrics.jsonl         appended while the run is in progress
     summary.json          optional, written while the run is in progress
     output.log            appended while the run is in progress (wrapper only)
@@ -52,7 +52,7 @@ shortest unique ending, usually the last 4 characters.
 
 | Field | Meaning |
 |---|---|
-| `format` | Format version, `1` |
+| `format` | Format version, `2` |
 | `id` | The run id, same as the folder name |
 | `started_at` | ISO 8601 time with offset |
 | `source` | `"wrapper"` (started by `hunch run`) or `"init"` (started by `hunch.init()`) |
@@ -68,19 +68,36 @@ shortest unique ending, usually the last 4 characters.
 | `host` | `hostname`, `os`, `slurm_job_id` |
 
 `git` holds `root`, `commit` (`null` before the first commit), `branch`,
-`remote` (credentials removed), `dirty`, `patch_bytes`, `untracked` (files
-copied into `untracked/`), `untracked_skipped` (first 1000 names) and
-`untracked_skipped_count`.
+`remote` (credentials removed) and `dirty` (uncommitted changes exist). It is
+only context: the code itself is in the snapshot, so git is optional.
 
-## Code state
+## Code snapshot
 
-The exact code of a run is: `git.commit`, plus `code.patch` applied on top
-(the output of `git diff HEAD --binary`, which covers staged and unstaged
-changes to tracked files), plus the files in `untracked/`.
+`files.json` is `{"files": {"<path>": {"sha": ..., "size": ...}}, "bytes": ...,
+"skipped": [...], "skipped_count": ..., "scan_truncated": ...}`. Paths are
+relative to `<project>` and use `/`. Each `sha` names a file in
+`objects/<first 2 characters>/<the rest>`: a git loose blob object, the
+zlib-compressed bytes `blob <size>\0<content>`, named by the SHA-1 of those
+bytes. The content is the file exactly as it was on disk, line endings included.
+Identical files are stored once across all runs.
 
-Untracked files are copied only if git would add them (they are not ignored),
-they are text (no NUL byte in the first 8 KB), each is at most 100 KB, and the
-total stays under 1 MB. Others are listed by name.
+Which files are saved:
+- In a git repository, the files git lists as tracked or untracked-but-not-ignored,
+  so `.gitignore` applies. Outside git, every file under `<project>`, skipping
+  hidden folders.
+- Never: folders named `.git`, `.hunch`, `__pycache__`, `node_modules`,
+  `.ipynb_checkpoints`, `.mypy_cache`, `.pytest_cache`, `.ruff_cache`, `.tox`,
+  `site-packages`, `wandb`, `mlruns` or `lightning_logs`; Python environments
+  (folders containing `pyvenv.cfg` or `conda-meta`); secrets (`.env`, `.env.*`,
+  `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*`, `id_ed25519*`, `.netrc`,
+  `.pypirc`); anything matched by `.hunchignore`.
+- `.hunchignore` has one pattern per line (`#` starts a comment). A pattern
+  ending in `/` matches folders, one containing `/` matches the whole path, and
+  any other matches a file or folder name.
+- Symlinks, binary files (a NUL byte in the first 8 KB), files over 1 MB, files
+  past a 20 MB total and files past the first 5000 are not saved; they are
+  listed in `skipped` (first 1000 names). Without git, scanning stops after
+  20000 files and `scan_truncated` is `true`.
 
 ## config.json
 
@@ -162,5 +179,10 @@ metric.
 
 ## Compatibility
 
-Readers must ignore fields they do not know. New fields can be added within
-version 1; removing or changing the meaning of a field requires version 2.
+Readers must ignore fields they do not know. New fields can be added within a
+version; removing or changing the meaning of a field requires a new version.
+
+Version 1 (Hunch 0.1) kept the code as `code.patch` (the uncommitted diff
+against `git.commit`) plus copies in `untracked/`, and its `git` field had
+`patch_bytes` and `untracked*` fields. Version 2 replaces them with the
+snapshot. Hunch still reads version 1 runs, but cannot compare their code.

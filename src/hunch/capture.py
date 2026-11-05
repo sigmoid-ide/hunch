@@ -13,13 +13,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-from . import _probe
-from .gitinfo import git, git_text, strip_credentials, toplevel
+from . import _probe, snapshot
+from .gitinfo import git_text, strip_credentials, toplevel
 from .store import FORMAT_VERSION, Store, timestamp, write_json
 
-UNTRACKED_FILE_LIMIT = 100 * 1024
-UNTRACKED_TOTAL_LIMIT = 1024 * 1024
-UNTRACKED_LIST_LIMIT = 1000
 ENV_VARS = ("CUDA_VISIBLE_DEVICES", "CONDA_DEFAULT_ENV", "VIRTUAL_ENV")
 ENV_PREFIXES = ("SLURM_",)
 
@@ -47,7 +44,8 @@ def start_run(
     """
     store.ensure()
     run_dir = store.new_run_dir()
-    code = capture_git(cwd, run_dir)
+    write_json(run_dir / "files.json", snapshot.take(store.root, store.dir / "objects"))
+    code = capture_git(store.root)
     line = code.get("branch") if code else None
     if parent:
         parent_source = "explicit"
@@ -79,65 +77,21 @@ def start_run(
     return run_dir
 
 
-def capture_git(start: Path, run_dir: Path) -> dict | None:
-    """Records the commit, the uncommitted diff of tracked files, and copies of
-    small untracked text files. Never touches the repository's index or files."""
+def capture_git(start: Path) -> dict | None:
+    """Where the code sits in git, when the project uses it. The code itself is in
+    the run's snapshot, so git is optional. Only reads; never touches the repository."""
     top = toplevel(start)
     if top is None:
         return None
-    commit = git_text(["rev-parse", "--verify", "-q", "HEAD"], top)
     remote = git_text(["config", "--get", "remote.origin.url"], top)
-    # Before the first commit, diff the working tree against the empty tree.
-    base = commit or git_text(["hash-object", "-t", "tree", "--stdin"], top, input=b"")
-    # The explicit options override diff settings in the user's git config
-    # (noprefix, submodule, external tools) that would make the patch unappliable.
-    proc = git(
-        ["diff", base, "--binary", "--no-color", "--no-ext-diff", "--no-textconv",
-         "--src-prefix=a/", "--dst-prefix=b/", "--submodule=short"],
-        top,
-    ) if base else None
-    patch = proc.stdout if proc is not None and proc.returncode == 0 else b""
-    if patch:
-        (run_dir / "code.patch").write_bytes(patch)
-
-    proc = git(["ls-files", "--others", "--exclude-standard", "-z"], top)
-    names = [n for n in proc.stdout.decode("utf-8", "replace").split("\0") if n] if proc and proc.returncode == 0 else []
-    included, skipped, total = [], [], 0
-    for name in names:
-        source = top / name
-        try:
-            size = source.lstat().st_size
-        except OSError:
-            continue
-        # A symlink's target may be outside the repository, such as a credentials file.
-        if source.is_symlink() or size > UNTRACKED_FILE_LIMIT or total + size > UNTRACKED_TOTAL_LIMIT or not _is_text(source):
-            skipped.append(name)
-            continue
-        target = run_dir / "untracked" / name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, target)
-        total += size
-        included.append(name)
-
+    status = git_text(["status", "--porcelain"], top)
     return {
         "root": str(top),
-        "commit": commit,
+        "commit": git_text(["rev-parse", "--verify", "-q", "HEAD"], top),
         "branch": git_text(["symbolic-ref", "--short", "-q", "HEAD"], top),
         "remote": strip_credentials(remote) if remote else None,
-        "dirty": bool(patch or names),
-        "patch_bytes": len(patch),
-        "untracked": included,
-        "untracked_skipped": skipped[:UNTRACKED_LIST_LIMIT],
-        "untracked_skipped_count": len(skipped),
+        "dirty": bool(status),
     }
-
-
-def _is_text(path: Path) -> bool:
-    try:
-        with open(path, "rb") as f:
-            return b"\0" not in f.read(8192)
-    except OSError:
-        return False
 
 
 def capture_env(python: str | None) -> dict:

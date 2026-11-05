@@ -52,7 +52,7 @@ Same names as W&B: `import hunch as wandb` works.
 
 ## Your disk, your files
 
-No server, no account, no telemetry, no dependencies. Runs are plain JSON in `.hunch/`.
+No server, no account, no telemetry, no dependencies, and git is optional. Runs are plain files in `.hunch/`.
 
 [Guide](https://github.com/sigmoid-ide/hunch/blob/main/docs/guide.md) · [File format](https://github.com/sigmoid-ide/hunch/blob/main/docs/format.md) · [Questions](https://github.com/sigmoid-ide/hunch/discussions/categories/q-a) · [Contributing](https://github.com/sigmoid-ide/hunch/blob/main/CONTRIBUTING.md)
 

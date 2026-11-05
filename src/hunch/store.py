@@ -18,7 +18,7 @@ from pathlib import Path
 
 from .gitinfo import toplevel
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 STORE_DIR = ".hunch"
 TRIVIAL_SECONDS = 30
 HEARTBEAT_SECONDS = 60

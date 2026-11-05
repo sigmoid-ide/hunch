@@ -11,6 +11,7 @@ import time
 
 import pytest
 from conftest import git, hunch, make_run, wrap
+from test_run import saved_files
 
 from hunch import api, runner
 from hunch.api import Run
@@ -57,13 +58,12 @@ def test_a_note_with_a_unicode_line_separator_survives(store):
     assert [e["value"] for e in store.resolve("aaaa").notes] == ["pasted from a pdf", "second"]
 
 
-def test_the_patch_ignores_the_users_diff_settings(repo, capsys):
+def test_diff_ignores_the_users_git_settings(repo, capsys):
     git(repo, "config", "diff.noprefix", "true")
     assert wrap("train.py") == 0
     (repo / "train.py").write_text((repo / "train.py").read_text().replace("2.0 /", "1.5 /"))
     assert wrap("train.py") == 0
     first, second = Store(repo).runs()
-    assert b"--- a/train.py" in (second.dir / "code.patch").read_bytes()
     capsys.readouterr()
     assert hunch("diff", first.id, second.id) == 0
     assert "train.py  +1 -1" in capsys.readouterr().out
@@ -75,23 +75,21 @@ def test_before_the_first_commit_the_working_tree_is_recorded(tmp_path, monkeypa
     git(path, "init", "-q", "-b", "main")
     (path / "cfg.py").write_text("lr = 0.1\n")
     git(path, "add", "cfg.py")
-    (path / "cfg.py").write_text("lr = 0.9\n")  # edited after staging
+    (path / "cfg.py").write_bytes(b"lr = 0.9\n")  # edited after staging
     monkeypatch.chdir(path)
     assert hunch("run", "-m", "first", "--", sys.executable, "-c", "pass") == 0
-    patch = (only_run(path).dir / "code.patch").read_bytes()
-    assert b"+lr = 0.9" in patch
-    assert b"0.1" not in patch
+    assert saved_files(only_run(path))["cfg.py"] == b"lr = 0.9\n"
 
 
 @pytest.mark.skipif(os.name == "nt", reason="creating symlinks needs extra rights on Windows")
-def test_untracked_symlinks_are_not_followed(repo, tmp_path):
+def test_symlinks_are_not_followed(repo, tmp_path):
     secret = tmp_path / "credentials"
     secret.write_text("token")
     (repo / "creds").symlink_to(secret)
     assert wrap("train.py") == 0
     run = only_run(repo)
-    assert not (run.dir / "untracked" / "creds").exists()
-    assert "creds" in run.meta["git"]["untracked_skipped"]
+    assert "creds" not in saved_files(run)
+    assert "creds" in json.loads((run.dir / "files.json").read_text())["skipped"]
 
 
 def test_text_that_is_not_valid_unicode_is_still_written(tmp_path):

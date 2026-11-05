@@ -153,7 +153,7 @@ def cmd_diff(args) -> int:
     store = Store.find()
     runs = store.runs()
     a, b = store.resolve(args.a, runs), store.resolve(args.b, runs)
-    for line in diff_lines(a, b, _view(store, runs), store.root, args.code):
+    for line in diff_lines(a, b, _view(store, runs), store.dir / "objects", args.code):
         print(line)
     return 0
 

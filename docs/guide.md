@@ -52,7 +52,7 @@ Notes are added, never overwritten, so `hunch show` keeps their history.
 ## What a run records
 
 - Command, arguments, working directory, host and SLURM job
-- Git commit and branch, uncommitted changes, and small untracked text files (up to 100 KB each, 1 MB in all)
+- Your code, exactly as it was when the run started (git not needed), plus the git commit and branch if you use git
 - Config, metrics, final values, output, exit status and duration
 - Python, packages, torch and CUDA, GPU model and driver
 - Why, conclusion and verdict
@@ -60,10 +60,24 @@ Notes are added, never overwritten, so `hunch show` keeps their history.
 Everything is in `.hunch/` at the git root (outside git, the current folder), one folder per run, never
 changed after it ends. Copy runs between machines with `rsync`. Every file is specified in [format.md](format.md).
 
+### Which files are saved
+
+Text files up to 1 MB each (20 MB per run). Each file is stored once, so unchanged files cost nothing. Hunch skips
+what `.gitignore` ignores, Python environments, caches, binary files and secrets such as `.env` and `*.pem`. To skip
+more, list patterns in `.hunchignore` at the project root:
+
+```
+data/
+*.csv
+```
+
+Hunch never commits and never touches your git history. It only reads it.
+
 ## Privacy
 
 Nothing leaves your machine. Only `CUDA_VISIBLE_DEVICES`, `CONDA_DEFAULT_ENV`, `VIRTUAL_ENV` and `SLURM_*` are
-recorded from the environment. Credentials are removed from git remotes and untracked symlinks are skipped.
+recorded from the environment. Secret files (`.env`, keys) are never saved, credentials are removed from git
+remotes, and symlinks are skipped.
 Arguments are recorded as typed, so don't pass secrets as arguments.
 
 ## Known limits

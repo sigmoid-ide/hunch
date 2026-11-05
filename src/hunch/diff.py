@@ -3,25 +3,23 @@
 from __future__ import annotations
 
 import math
-import os
 import shlex
-import tempfile
 from pathlib import Path
 
-from .gitinfo import git, git_text, toplevel
+from . import snapshot
 from .render import View, flatten, format_value, truncate
 from .store import RunRecord, read_json
 
 PACKAGE_LIMIT = 10
 
 
-def diff_lines(a: RunRecord, b: RunRecord, view: View, root: Path, full_code: bool) -> list[str]:
+def diff_lines(a: RunRecord, b: RunRecord, view: View, objects: Path, full_code: bool) -> list[str]:
     lines = []
     for run in (a, b):
         lines.append(f"{view.short[run.id]}  {run.started:%b %d %H:%M}  {truncate(run.why or '(no why)', 60)}")
     lines.append("")
     sections = [
-        ("code", code_changes(a, b, root, full_code)),
+        ("code", code_changes(a, b, objects, full_code)),
         ("config", config_changes(a, b)),
         ("env", env_changes(a, b)),
         ("metrics", metric_changes(a, b, view)),
@@ -33,86 +31,18 @@ def diff_lines(a: RunRecord, b: RunRecord, view: View, root: Path, full_code: bo
     return lines
 
 
-def code_changes(a: RunRecord, b: RunRecord, root: Path, full: bool) -> list[str]:
-    git_a, git_b = a.meta.get("git"), b.meta.get("git")
-    if not git_a or not git_b:
-        return ["not comparable: at least one run was not in a git repository"]
-    if _same_code(a, b):
-        return []
-    repo = toplevel(root)
-    if repo is None:
-        return ["not comparable: this folder is not in a git repository"]
-    built = [code_tree(repo, run) for run in (a, b)]
-    problems = [f"{run.id[-4:]}: {problem}" for run, (tree, problem) in zip((a, b), built) if tree is None]
-    if problems:
-        return ["files not comparable here", *problems]
-    trees = [tree for tree, _ in built]
+def code_changes(a: RunRecord, b: RunRecord, objects: Path, full: bool) -> list[str]:
+    """Compares the two runs' snapshots. Needs no git."""
+    manifests = [read_json(run.dir / "files.json") for run in (a, b)]
+    if None in manifests:
+        return ["not comparable: a run was recorded before Hunch saved code snapshots (0.1)"]
+    changed = snapshot.changes(objects, manifests[0]["files"], manifests[1]["files"])
     if full:
-        proc = git(["diff", "--no-color", "--no-ext-diff", trees[0], trees[1]], repo)
-        text = proc.stdout.decode("utf-8", "replace") if proc and proc.returncode == 0 else ""
-        text_lines = text.rstrip("\n").splitlines()
-        return ["full diff:", *text_lines] if text_lines else []
-    out = git_text(["diff", "--numstat", trees[0], trees[1]], repo) or ""
-    changes = []
-    for line in out.splitlines():
-        added, deleted, path = line.split("\t", 2)
-        changes.append(f"{path}  binary" if added == "-" else f"{path}  +{added} -{deleted}")
-    if changes:
-        changes[-1] += "   (--code for the full diff)"
-    return changes
-
-
-def _same_code(a: RunRecord, b: RunRecord) -> bool:
-    if a.meta["git"].get("commit") != b.meta["git"].get("commit"):
-        return False
-    if _read_bytes(a.dir / "code.patch") != _read_bytes(b.dir / "code.patch"):
-        return False
-    return _untracked(a) == _untracked(b)
-
-
-def _read_bytes(path: Path) -> bytes:
-    try:
-        return path.read_bytes()
-    except FileNotFoundError:
-        return b""
-
-
-def _untracked(run: RunRecord) -> dict[str, bytes]:
-    folder = run.dir / "untracked"
-    if not folder.is_dir():
-        return {}
-    return {f.relative_to(folder).as_posix(): f.read_bytes() for f in folder.rglob("*") if f.is_file()}
-
-
-def code_tree(repo: Path, run: RunRecord) -> tuple[str | None, str | None]:
-    """Rebuilds a run's exact code as a git tree, using a temporary index, so the
-    repository's own index and files are never touched. Returns the tree, or
-    None and the reason it could not be rebuilt."""
-    commit = run.meta["git"].get("commit")
-    with tempfile.TemporaryDirectory() as temp:
-        env = {**os.environ, "GIT_INDEX_FILE": str(Path(temp) / "index")}
-        if commit:
-            if git_text(["cat-file", "-e", f"{commit}^{{commit}}"], repo) is None:
-                return None, f"commit {commit[:9]} is not in this repository"
-            if git_text(["read-tree", commit], repo, env) is None:
-                return None, f"could not read commit {commit[:9]}"
-        elif git_text(["read-tree", "--empty"], repo, env) is None:
-            return None, "could not start from an empty tree"
-        patch = run.dir / "code.patch"
-        if patch.is_file() and patch.stat().st_size:
-            if git_text(["apply", "--cached", "--whitespace=nowarn", str(patch)], repo, env) is None:
-                return None, "its uncommitted changes (code.patch) did not apply"
-        folder = run.dir / "untracked"
-        if folder.is_dir():
-            for file in sorted(folder.rglob("*")):
-                if not file.is_file():
-                    continue
-                name = file.relative_to(folder).as_posix()
-                blob = git_text(["hash-object", "-w", f"--path={name}", str(file)], repo)
-                if blob is None or git_text(["update-index", "--add", "--cacheinfo", f"100644,{blob},{name}"], repo, env) is None:
-                    return None, f"could not add the untracked file {name}"
-        tree = git_text(["write-tree"], repo, env)
-        return (tree, None) if tree else (None, "could not write the rebuilt tree")
+        return ["full diff:", *(line for *_, diff in changed for line in diff)] if changed else []
+    lines = [f"{path}  +{added} -{removed}" for path, added, removed, _ in changed]
+    if lines:
+        lines[-1] += "   (--code for the full diff)"
+    return lines
 
 
 def config_changes(a: RunRecord, b: RunRecord) -> list[str]:
