@@ -34,6 +34,7 @@ pip install sigmoid-hunch
 | `git show a7f3` | `hunch show a7f3` |
 | `git diff 9b40 a7f3` | `hunch diff 9b40 a7f3` |
 | `git notes add` | `hunch note a7f3 "helps" --keep` |
+| `git tag -a v1 -m "..."` | `hunch milestone "warmup beats baseline"` |
 | `git config` | `hunch config main-metric val_loss` |
 
 **How is it different from git?** Git tracks what you changed. Hunch tracks what you tried, and what happened.

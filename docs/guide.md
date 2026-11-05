@@ -27,7 +27,9 @@ In distributed training only rank 0 records (`RANK`, `OMPI_COMM_WORLD_RANK`, `PM
 ## Read
 
 ```
-hunch log                    the tree of runs
+hunch log                    the tree of runs (milestones, once you save one)
+hunch log --runs             the tree of runs, even with milestones
+hunch log M2                 the runs a milestone covers
 hunch log --oneline -n 50    a flat list, newest first
 hunch log --all              include quick crashes (failed in under 30 seconds)
 hunch show a7f3              one run in full
@@ -48,6 +50,27 @@ hunch config main-metric val_acc            the metric shown for each run (--uns
 ```
 
 Notes are added, never overwritten, so `hunch show` keeps their history.
+
+## Milestones
+
+Every run is recorded automatically. When something is worth remembering, save a milestone:
+
+```
+hunch milestone "warmup + cosine beats baseline" -m "warmup kills the 2k spike"
+hunch milestone "cleaner data loader" --best 75ba     choose the best run yourself
+hunch show M1                                          a milestone in full
+```
+
+A milestone covers the runs on your branch that ended since the previous one. Hunch drafts a summary
+(how many runs, what varied, the best by the main metric) and saves the code as it is now. Your title
+and note sit next to it. After the first milestone, `hunch log` lists milestones with their runs folded:
+
+```
+  since the last milestone: 2 runs   (hunch log --runs to see them)
+◆ M1   Nov 05  warmup + cosine beats baseline  best 75ba  val_loss 2.242
+        "warmup kills the 2k spike"
+      ▸ 7 runs (3 kept, 2 dropped, 1 crashed)   (hunch log M1)
+```
 
 ## What a run records
 

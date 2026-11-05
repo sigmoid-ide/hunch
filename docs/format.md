@@ -22,6 +22,9 @@ contract: anything written here is safe to rely on.
     heartbeat             touched every 60 seconds while the run is in progress
     end.json              written once, when the run ends
     notes.jsonl           append-only, at any time
+  milestones/<id>/
+    files.json            the code when the milestone was saved
+    milestone.json        written last, never changed after
 ```
 
 In a git repository, `<project>` is the nearest folder with `.hunch/runs`
@@ -170,6 +173,34 @@ Runs whose status is not `"finished"` and that lasted under 30 seconds are
 "trivial" (typos, instant crashes): hidden from `hunch log` unless `--all` is
 given or another shown run came from them. Quick runs that finished are not
 trivial.
+
+## Milestones
+
+Runs are recorded automatically; a milestone is one you save yourself
+(`hunch milestone "title"`). It covers the runs on the current line that ended
+since the previous milestone and were not covered by one yet. Milestone ids
+follow the run id pattern; tools number them M1, M2, ... in the order they were
+saved.
+
+| Field | Meaning |
+|---|---|
+| `format` | Format version, `2` |
+| `id` | The milestone id, same as the folder name |
+| `created_at` | ISO 8601 time with offset |
+| `title` | What the milestone is |
+| `description` | Your own note, or `null` |
+| `summary` | Drafted by Hunch from the runs it covers: counts, what varied, the best run |
+| `line` | The git branch, or `null` |
+| `previous` | Id of the previous milestone on the same line, or `null` |
+| `runs` | Ids of the runs it covers, oldest first |
+| `best` | Id of the best run, or `null` |
+| `metric` | The metric `best` was picked by, or `null` |
+| `git` | Same as in `run.json`, or `null` |
+
+Without `--best`, the best run is the finished run with the best final value
+of the main metric, when the metric's name says which way is better (`loss`,
+`error`, `perplexity` lower; `acc`, `f1`, `bleu`, `reward` higher). Otherwise
+`best` is `null`.
 
 ## Project config.json
 

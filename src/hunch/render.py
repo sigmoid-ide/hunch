@@ -205,6 +205,76 @@ def log_lines(runs: list[RunRecord], view: View) -> list[str]:
     return [graph.ljust(width) + "  " + next(table) if run else graph for graph, run in rows]
 
 
+def run_counts(runs: list[RunRecord]) -> str:
+    """"9 runs (2 kept, 3 dropped, 1 crashed)", leaving out quick crashes."""
+    shown = [run for run in runs if not run.trivial]
+    counts = [f"{n} {label}" for n, label in (
+        (sum(r.verdict == "keep" for r in shown), "kept"),
+        (sum(r.verdict == "drop" for r in shown), "dropped"),
+        (sum(r.status in ("crashed", "killed") for r in shown), "crashed"),
+    ) if n]
+    return plural(len(shown), "run") + (f" ({', '.join(counts)})" if counts else "")
+
+
+def milestone_lines(milestones: list, numbers: dict[str, str], runs: list[RunRecord], view: View) -> list[str]:
+    """`hunch log` once there are milestones: newest first, each with its runs folded."""
+    by_id = {run.id: run for run in runs}
+    covered = {run_id for m in milestones for run_id in m.runs}
+    pending = [run for run in runs if run.id not in covered and not run.trivial]
+    diamond, bar, fold = ("◆", "│", "▸") if view.unicode else ("#", "|", ">")
+    lines = []
+    if pending:
+        lines.append(f"  since the last milestone: {plural(len(pending), 'run')}   (hunch log --runs to see them)")
+    newest_first = list(reversed(milestones))
+    title_width = max((len(truncate(m.title, 48)) for m in newest_first), default=0)
+    for index, m in enumerate(newest_first):
+        best = by_id.get(m.best) if m.best else None
+        best_text = ""
+        if best is not None and m.metric:
+            best_text = f"best {view.short.get(best.id, best.id[-4:])}  {m.metric} {format_value(best.final_metrics().get(m.metric))}"
+        lines.append(f"{diamond} {numbers[m.id]:<4} {m.created:%b %d}  {truncate(m.title, 48).ljust(title_width)}  {best_text}".rstrip())
+        side = " " if index == len(newest_first) - 1 else bar
+        if m.description:
+            lines.append(f'{side}       "{truncate(m.description, 70)}"')
+        members = [by_id[run_id] for run_id in m.runs if run_id in by_id]
+        lines.append(f"{side}     {fold} {run_counts(members)}   (hunch log {numbers[m.id]})")
+    return lines
+
+
+def milestone_show_lines(m, number: str, runs: list[RunRecord], view: View, root: Path) -> list[str]:
+    by_id = {run.id: run for run in runs}
+    lines: list[str] = []
+
+    def add(label: str, text: str) -> None:
+        lines.append(f"{label:<11}{text}")
+
+    add("milestone", f"{number}  {m.id}")
+    add("title", m.title)
+    add("saved", f"{m.created:%Y-%m-%d %H:%M}" + (f" on {m.line}" if m.line else ""))
+    if m.description:
+        add("note", m.description)
+    add("summary", m.summary)
+    best = by_id.get(m.best) if m.best else None
+    if best is not None:
+        value = f"  {m.metric} {format_value(best.final_metrics().get(m.metric))}" if m.metric else ""
+        add("best", f"{view.short.get(best.id, best.id)}  {best.why or '(no hypothesis)'}{value}")
+    members = [by_id[run_id] for run_id in m.runs if run_id in by_id]
+    for index, run in enumerate(members):
+        add("runs" if index == 0 else "", f"{view.short.get(run.id, run.id)}  {truncate(run.why or '(no hypothesis)', 50)}")
+    if not members:
+        add("runs", "none")
+    files = (read_json(m.dir / "files.json", {}) or {}).get("files") or {}
+    add("code", f"{plural(len(files), 'file')} saved")
+    code = m.meta.get("git") or {}
+    if code.get("commit"):
+        add("git", f"{code['commit'][:9]} on {code.get('branch') or 'detached HEAD'}")
+    try:
+        add("folder", str(m.dir.relative_to(root)))
+    except ValueError:
+        add("folder", str(m.dir))
+    return lines
+
+
 def show_lines(run: RunRecord, view: View, root: Path) -> list[str]:
     meta = run.meta
     code = meta.get("git") or {}

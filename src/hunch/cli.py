@@ -6,9 +6,11 @@ import argparse
 import os
 import sys
 
-from . import __version__
+from . import __version__, milestones
 from .diff import diff_lines
-from .render import RAMP, View, can_encode, log_lines, ls_lines, show_lines, visible
+from .render import (
+    RAMP, View, can_encode, log_lines, ls_lines, milestone_lines, milestone_show_lines, run_counts, show_lines, visible,
+)
 from .runner import run_command
 from .store import HunchError, Store
 
@@ -49,15 +51,23 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("command", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
     run.set_defaults(handler=cmd_run)
 
-    log = commands.add_parser("log", help="show the tree of runs")
+    log = commands.add_parser("log", help="show milestones, or the tree of runs")
+    log.add_argument("milestone", nargs="?", help="a milestone (M3) to show its runs")
+    log.add_argument("--runs", action="store_true", help="the tree of all runs, even when there are milestones")
     log.add_argument("--oneline", action="store_true", help="recent runs as a flat list, newest first")
     log.add_argument("-n", type=int, default=20, help="with --oneline, how many runs to show (default 20)")
     log.add_argument("--all", action="store_true", help="include quick crashes (runs that failed in under 30 seconds)")
     log.set_defaults(handler=cmd_log)
 
-    show = commands.add_parser("show", help="show everything about one run")
+    show = commands.add_parser("show", help="show everything about one run or milestone (M3)")
     show.add_argument("run")
     show.set_defaults(handler=cmd_show)
+
+    milestone = commands.add_parser("milestone", help="save a milestone: the runs since the previous one, summed up")
+    milestone.add_argument("title", help="what this milestone is, for example \"warmup + cosine beats baseline\"")
+    milestone.add_argument("-m", "--note", help="your own words, next to the summary Hunch writes")
+    milestone.add_argument("--best", metavar="RUN", help="the run that best shows it (default: picked by the main metric)")
+    milestone.set_defaults(handler=cmd_milestone)
 
     diff = commands.add_parser("diff", help="compare two runs")
     diff.add_argument("a")
@@ -124,11 +134,19 @@ def _can_ask() -> bool:
 def cmd_log(args) -> int:
     store = Store.find()
     runs = store.runs()
-    if not runs:
+    saved = milestones.milestones(store)
+    if not runs and not saved:
         print(EMPTY)
         return 0
-    shown = visible(runs, args.all)
     view = _view(store, runs)
+    if args.milestone:
+        members = set(milestones.resolve(store, args.milestone, saved).runs)
+        runs = [run for run in runs if run.id in members]
+    elif saved and not (args.runs or args.oneline or args.all):
+        for line in milestone_lines(saved, milestones.numbers(saved), runs, view):
+            print(line)
+        return 0
+    shown = visible(runs, args.all)
     lines = ls_lines(list(reversed(shown))[: args.n], view) if args.oneline else log_lines(shown, view)
     for line in lines:
         print(line)
@@ -144,8 +162,23 @@ def _print_hidden(count: int) -> None:
 def cmd_show(args) -> int:
     store = Store.find()
     runs = store.runs()
-    for line in show_lines(store.resolve(args.run, runs), _view(store, runs), store.root):
+    if milestones.is_milestone_ref(args.run):
+        saved = milestones.milestones(store)
+        milestone = milestones.resolve(store, args.run, saved)
+        lines = milestone_show_lines(milestone, milestones.numbers(saved)[milestone.id], runs, _view(store, runs), store.root)
+    else:
+        lines = show_lines(store.resolve(args.run, runs), _view(store, runs), store.root)
+    for line in lines:
         print(line)
+    return 0
+
+
+def cmd_milestone(args) -> int:
+    store = Store.find()
+    milestone = milestones.create(store, args.title, args.note, args.best)
+    number = milestones.numbers(milestones.milestones(store))[milestone.id]
+    print(f"hunch: saved {number}, covering {run_counts([r for r in store.runs() if r.id in set(milestone.runs)])}")
+    print(f"  {milestone.summary}")
     return 0
 
 
