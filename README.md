@@ -68,7 +68,7 @@ Same names as W&B: `import hunch as wandb` works.
 compare any two in the diff viewer, and start runs with one click. In review on JetBrains Marketplace.
 
 **[Hunch for VS Code](https://marketplace.visualstudio.com/items?itemName=sigmoid-ide.hunch)**: the same in VS Code, one click away
-in the Activity Bar. For Cursor, Windsurf and VSCodium, it is coming to Open VSX.
+in the Activity Bar. For Cursor, Windsurf and VSCodium, get it from [Open VSX](https://open-vsx.org/extension/sigmoid-ide/hunch).
 
 ## Your disk, your files
 
