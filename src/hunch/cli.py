@@ -25,7 +25,12 @@ def main(argv: list[str] | None = None) -> int:
         except (AttributeError, ValueError):
             pass
     parser = _parser()
-    args = parser.parse_args(argv)
+    args, extra = parser.parse_known_args(argv)
+    if (getattr(args, "handler", None) is cmd_note and args.text is None and len(extra) == 1
+            and not extra[0].startswith("-")):
+        args.text = extra[0]  # `hunch note RUN --keep TEXT`: Python 3.11 fills the optional text before the flag
+    elif extra:
+        parser.error(f"unrecognized arguments: {' '.join(extra)}")
     if not hasattr(args, "handler"):
         parser.print_help()
         return 0

@@ -58,6 +58,19 @@ def test_a_note_with_a_unicode_line_separator_survives(store):
     assert [e["value"] for e in store.resolve("aaaa").notes] == ["pasted from a pdf", "second"]
 
 
+def test_a_note_can_come_before_or_after_the_verdict(store):
+    # Python 3.11's argparse fills the optional text before it reaches --keep; later versions do not.
+    make_run(store, "aaaa", start=0)
+    assert hunch("note", "aaaa", "--keep", "after the flag") == 0
+    assert hunch("note", "aaaa", "before the flag", "--drop") == 0
+    assert hunch("note", "aaaa", "--keep") == 0
+    run = store.resolve("aaaa")
+    assert [(e["kind"], e["value"]) for e in run.notes] == [
+        ("note", "after the flag"), ("verdict", "keep"), ("note", "before the flag"), ("verdict", "drop"), ("verdict", "keep")]
+    with pytest.raises(SystemExit):
+        hunch("note", "aaaa", "--keep", "one", "two")  # more than one text is still refused
+
+
 def test_diff_ignores_the_users_git_settings(repo, capsys):
     git(repo, "config", "diff.noprefix", "true")
     assert wrap("train.py") == 0
