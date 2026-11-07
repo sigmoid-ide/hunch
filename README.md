@@ -25,7 +25,7 @@ pip install sigmoid-hunch
 ```
 
 <p>
-  <a href="https://github.com/sigmoid-ide/hunch-jetbrains"><img src="https://raw.githubusercontent.com/sigmoid-ide/hunch/main/media/pycharm-button.svg" height="44" alt="Get the PyCharm plugin" /></a>
+  <a href="https://plugins.jetbrains.com/plugin/35831-hunch"><img src="https://raw.githubusercontent.com/sigmoid-ide/hunch/main/media/pycharm-button.svg" height="44" alt="Get the PyCharm plugin" /></a>
   <a href="https://marketplace.visualstudio.com/items?itemName=sigmoid-ide.hunch"><img src="https://raw.githubusercontent.com/sigmoid-ide/hunch/main/media/vscode-button.svg" height="44" alt="Get the VS Code extension" /></a>
 </p>
 
@@ -63,10 +63,10 @@ Same names as W&B: `import hunch as wandb` works.
 
 ## In your editor
 
-<a href="https://github.com/sigmoid-ide/hunch-jetbrains"><img src="https://raw.githubusercontent.com/sigmoid-ide/hunch-jetbrains/main/media/marketplace/01-runs.png" width="100%" alt="The Hunch tool window in PyCharm: milestones, the tree of runs with their metric curves and conclusions, and one run's details" /></a>
+<a href="https://plugins.jetbrains.com/plugin/35831-hunch"><img src="https://raw.githubusercontent.com/sigmoid-ide/hunch-jetbrains/main/media/marketplace/01-runs.png" width="100%" alt="The Hunch tool window in PyCharm: milestones, the tree of runs with their metric curves and conclusions, and one run's details" /></a>
 
-**[Hunch for PyCharm](https://github.com/sigmoid-ide/hunch-jetbrains)**: your runs as a tree, keep or drop them,
-compare any two in the diff viewer, and start runs with one click. In review on JetBrains Marketplace.
+**[Hunch for PyCharm](https://plugins.jetbrains.com/plugin/35831-hunch)**: your runs as a tree, keep or drop them,
+compare any two in the diff viewer, and start runs with one click. Install it from **Settings | Plugins** in PyCharm.
 
 **[Hunch for VS Code](https://marketplace.visualstudio.com/items?itemName=sigmoid-ide.hunch)**: the same in VS Code, one click away
 in the Activity Bar. For Cursor, Windsurf and VSCodium, get it from [Open VSX](https://open-vsx.org/extension/sigmoid-ide/hunch).
