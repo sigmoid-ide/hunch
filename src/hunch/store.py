@@ -22,6 +22,7 @@ FORMAT_VERSION = 2
 STORE_DIR = ".hunch"
 TRIVIAL_SECONDS = 30
 HEARTBEAT_SECONDS = 60
+REMOTE_FILE = "remote.json"  # written by Ferry next to a run that is copied home from another machine
 LOST_AFTER_SECONDS = 300
 SPARK_POINTS = 32
 
@@ -204,6 +205,10 @@ class RunRecord:
     def status(self) -> str:
         if self.end:
             return self.end.get("status", "finished")
+        if (self.dir / REMOTE_FILE).exists():
+            # Copied from another machine (Ferry): this computer may have slept, so a quiet
+            # heartbeat here says nothing about the run there.
+            return "running"
         try:
             seen = (self.dir / "heartbeat").stat().st_mtime
         except FileNotFoundError:

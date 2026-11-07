@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .notebook import CELLS_FILE
 from .runner import format_duration
-from .store import RunRecord, downsample, read_json, read_jsonl
+from .store import REMOTE_FILE, RunRecord, downsample, read_json, read_jsonl
 
 RAMP = "▁▂▃▄▅▆▇█"
 RAMP_ASCII = "_.-:=+*#"
@@ -302,6 +302,10 @@ def show_lines(run: RunRecord, view: View, root: Path) -> list[str]:
     host = meta.get("host") or {}
     where = host.get("hostname", "?") + (f", SLURM job {host['slurm_job_id']}" if host.get("slurm_job_id") else "")
     add("started", f"{run.started:%Y-%m-%d %H:%M} on {where}")
+    remote = read_json(run.dir / REMOTE_FILE)
+    if remote:
+        synced = str(remote.get("synced_at") or "not yet")[:16].replace("T", " ")
+        add("remote", f"ran on {remote.get('machine', '?')}, copied home by Ferry (last copy {synced})")
     add("why", run.why or "(none)")
     if run.verdict or run.conclusion:
         add("verdict", "  ".join(filter(None, [run.verdict, f'"{run.conclusion}"' if run.conclusion else None])))

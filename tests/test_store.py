@@ -34,6 +34,17 @@ def test_running_and_lost_runs(store):
     assert store.resolve("aaaa").status == "lost"
 
 
+def test_a_run_copied_from_another_machine_is_not_lost_while_this_one_slept(store, capsys):
+    folder = make_run(store, "aaaa", start=0, status=None)
+    (folder / "remote.json").write_text('{"machine": "gpu-box", "synced_at": "2026-11-07T09:00:00+05:00"}')
+    old = time.time() - LOST_AFTER_SECONDS - 3600
+    (folder / "heartbeat").touch()
+    os.utime(folder / "heartbeat", (old, old))
+    assert store.resolve("aaaa").status == "running"
+    assert hunch("show", "aaaa") == 0
+    assert "ran on gpu-box, copied home by Ferry (last copy 2026-11-07 09:00)" in capsys.readouterr().out
+
+
 def test_latest_note_wins_and_history_is_kept(store):
     make_run(store, "aaaa", start=0, why="first idea")
     assert hunch("note", "aaaa", "helps a little", "--keep") == 0

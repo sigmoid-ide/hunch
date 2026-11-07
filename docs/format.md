@@ -19,6 +19,7 @@ contract: anything written here is safe to rely on.
     metrics.jsonl         appended while the run is in progress
     summary.json          optional, written while the run is in progress
     output.log            appended while the run is in progress (wrapper only)
+    remote.json           this computer only: the run is copied from another machine (Ferry)
     cells.jsonl           appended while the run is in progress (notebooks only)
     heartbeat             touched every 60 seconds while the run is in progress
     end.json              written once, when the run ends
@@ -163,7 +164,20 @@ Optional overrides for final values, set with `run.summary[...] = value`.
 
 Taken from `end.json` when it exists. Otherwise the run is `"running"` if
 `heartbeat` changed less than 5 minutes ago, and `"lost"` if not (killed
-outright, preempted, or the machine went down).
+outright, preempted, or the machine went down). A run with `remote.json` and
+no `end.json` is `"running"`: it is being copied from another machine, and this
+computer's heartbeat says nothing about the run there.
+
+## remote.json
+
+Only for runs that ran on another machine and are copied home by Ferry
+(`sigmoid-ferry`). Written only on this computer, never on the machine that ran
+the run, and never part of the run's own record. Fields: `machine` (the name
+given in Ferry), `dir` (the run folder on that machine), `synced_at` (ISO 8601
+time of the last copy), `heartbeat_age` (seconds since that machine's heartbeat,
+at the last copy), and Ferry's own bookkeeping (`offsets`, `seen`, `pidfile`,
+`venv`, `complete`). Readers that only show runs need `machine` and
+`synced_at` at most.
 
 ## notes.jsonl
 
