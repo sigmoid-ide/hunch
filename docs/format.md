@@ -19,6 +19,7 @@ contract: anything written here is safe to rely on.
     metrics.jsonl         appended while the run is in progress
     summary.json          optional, written while the run is in progress
     output.log            appended while the run is in progress (wrapper only)
+    cells.jsonl           appended while the run is in progress (notebooks only)
     heartbeat             touched every 60 seconds while the run is in progress
     end.json              written once, when the run ends
     notes.jsonl           append-only, at any time
@@ -59,7 +60,7 @@ shortest unique ending, usually the last 4 characters.
 | `id` | The run id, same as the folder name |
 | `started_at` | ISO 8601 time with offset |
 | `source` | `"wrapper"` (started by `hunch run`) or `"init"` (started by `hunch.init()`) |
-| `command` | The command as a list of arguments, recorded as typed |
+| `command` | The command as a list of arguments, recorded as typed. In a notebook, the notebook's path relative to `cwd`, or `["notebook"]` when the kernel does not say which |
 | `cwd` | Working directory |
 | `why` | The reason given at start, or `null` |
 | `parent` | Id of the run this one came from, or `null` |
@@ -81,8 +82,10 @@ only context: the code itself is in the snapshot, so git is optional.
 relative to `<project>` and use `/`. Each `sha` names a file in
 `objects/<first 2 characters>/<the rest>`: a git loose blob object, the
 zlib-compressed bytes `blob <size>\0<content>`, named by the SHA-1 of those
-bytes. The content is the file exactly as it was on disk, line endings included.
-Identical files are stored once across all runs.
+bytes. The content is the file exactly as it was on disk, line endings included,
+except for notebooks (`.ipynb`): they are saved without outputs, execution counts
+or saved widget state, as JSON with one-space indents and sorted keys. Identical
+files are stored once across all runs.
 
 Which files are saved:
 - In a git repository, the files git lists as tracked or untracked-but-not-ignored,
@@ -97,7 +100,8 @@ Which files are saved:
 - `.hunchignore` has one pattern per line (`#` starts a comment). A pattern
   ending in `/` matches folders, one containing `/` matches the whole path, and
   any other matches a file or folder name.
-- Symlinks, binary files (a NUL byte in the first 8 KB), files over 1 MB, files
+- Symlinks, binary files (a NUL byte in the first 8 KB), files over 1 MB
+  (notebooks: over 1 MB without outputs, or over 50 MB with them), files
   past a 20 MB total and files past the first 5000 are not saved; they are
   listed in `skipped` (first 1000 names). Without git, scanning stops after
   20000 files and `scan_truncated` is `true`.
@@ -126,6 +130,17 @@ One JSON object per `log()` call: `_step` (integer), `_time` (Unix seconds),
 then the logged values. Keys starting with `_` are reserved. Non-finite floats
 are written as the bare tokens `NaN`, `Infinity` and `-Infinity`, as Python's
 `json` module does. A last line cut short by a crash is ignored by readers.
+
+## cells.jsonl
+
+Only for runs started in a notebook or another IPython shell. One JSON object
+per cell the kernel ran, in the order it ran them: `n` (the execution count) and
+`source` (the cell as typed). The cells run before `hunch.init()` come first,
+written when the run starts; they made the kernel's state, so they belong to the
+run. Every later cell is written when it ends and also has `at` (ISO 8601 time)
+and, if it raised, `error` (`"<type>: <message>"`, at most 300 characters). The
+cell that calls `hunch.finish()` is written without waiting for it to end. Cells
+the editor runs without a history entry are not recorded.
 
 ## summary.json
 

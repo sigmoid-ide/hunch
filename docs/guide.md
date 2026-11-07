@@ -22,6 +22,11 @@ hunch.log({"val_loss": val_loss}, step=step)               # tensors become numb
 ```
 
 The names follow W&B, so `import hunch as wandb` works for `init`, `log`, `config`, `summary` and `finish`.
+
+In a Jupyter notebook, `hunch.init()` names the run after the notebook and keeps every cell the kernel runs, in the
+order it ran them, including the cells before `init()` and any cell that failed. That is the code that made the
+result, even when cells were edited or run out of order. The run ends at `hunch.finish()`, the next `hunch.init()`
+or when the kernel stops. `hunch show a7f3 --cells` prints the cells. Notebooks are saved without their outputs.
 In distributed training only rank 0 records (`RANK`, `OMPI_COMM_WORLD_RANK`, `PMI_RANK`, and inside
 `hunch run` also `SLURM_PROCID`).
 
@@ -34,8 +39,9 @@ hunch log M2                 the runs a milestone covers
 hunch log --oneline -n 50    a flat list, newest first
 hunch log --all              include quick crashes (failed in under 30 seconds)
 hunch show a7f3              one run in full
-hunch diff 9b40 a7f3         code, config, environment and metric changes
-hunch diff 9b40 a7f3 --code  the full code diff
+hunch show a7f3 --cells      the cells a notebook run ran, in order
+hunch diff 9b40 a7f3         code, notebook cells, config, environment and metric changes
+hunch diff 9b40 a7f3 --code  the full code diff (notebooks as their cells' code)
 ```
 
 Runs are named by the end of their id, usually 4 characters.
@@ -77,6 +83,7 @@ and note sit next to it. After the first milestone, `hunch log` lists milestones
 
 - Command, arguments, working directory, host and SLURM job
 - Your code, exactly as it was when the run started (git not needed), plus the git commit and branch if you use git
+- In a notebook, every cell the kernel ran, in order
 - Config, metrics, final values, output, exit status and duration
 - Python, packages, torch and CUDA, GPU model and driver
 - Why, conclusion and verdict
@@ -86,7 +93,8 @@ changed after it ends. Copy runs between machines with `rsync`. Every file is sp
 
 ### Which files are saved
 
-Text files up to 1 MB each (20 MB per run). Each file is stored once, so unchanged files cost nothing. Hunch skips
+Text files up to 1 MB each (20 MB per run), and notebooks without their outputs, so plots don't count. Each file is
+stored once, so unchanged files cost nothing. Hunch skips
 what `.gitignore` ignores, Python environments, caches, binary files and secrets such as `.env` and `*.pem`. To skip
 more, list patterns in `.hunchignore` at the project root:
 

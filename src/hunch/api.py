@@ -11,6 +11,7 @@ import time
 from collections.abc import Mapping
 from pathlib import Path
 
+from . import notebook
 from .capture import capture_env, start_run
 from .runner import RUN_DIR_ENV
 from .store import Heartbeat, Store, append_jsonl, finish_run, read_json, write_json
@@ -73,6 +74,7 @@ class Run:
         self._lock = threading.Lock()
         self._started = time.monotonic()
         self._heartbeat: Heartbeat | None = None
+        self._cells: notebook.CellLog | None = None
         self.config = Config(config, self._save_config if run_dir else None)
         self.summary = Config(None, self._save_summary if run_dir else None)
 
@@ -97,6 +99,8 @@ class Run:
         self._finished = True
         if self._heartbeat is not None:
             self._heartbeat.stop()
+        if self._cells is not None:
+            self._cells.stop()
         if self._owned and self.dir is not None:
             finish_run(
                 self.dir,
@@ -151,12 +155,13 @@ def init(
 
     why = why or notes
     labels = {key: value for key, value in (("project", project), ("name", name), ("tags", list(tags or []))) if value}
+    ipython = notebook.shell()
     if joinable:
         run = _join(Path(joined), why, main_metric, labels, values)
     else:
         run_dir = start_run(
             Store.find(),
-            command=[sys.executable, *sys.argv],
+            command=(notebook.command(ipython, Path.cwd()) if ipython is not None else None) or [sys.executable, *sys.argv],
             cwd=Path.cwd(),
             why=why,
             parent=None,
@@ -170,6 +175,8 @@ def init(
         run._heartbeat = Heartbeat(run_dir / "heartbeat")
         run._heartbeat.start()
         _install_hooks()
+    if ipython is not None:
+        run._cells = notebook.CellLog(ipython, run.dir)
     _active = run
     return run
 

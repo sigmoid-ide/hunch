@@ -58,6 +58,7 @@ for step in range(steps):
 ```
 
 Running `python train.py` without `hunch run`? `hunch.init()` records the run on its own; add `why="..."` to say why.
+In a Jupyter notebook it also keeps every cell the kernel ran, in order, so out-of-order cells can't hide what made a result.
 Same names as W&B: `import hunch as wandb` works.
 
 ## In your editor

@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import difflib
 import math
 import shlex
 from pathlib import Path
 
-from . import snapshot
+from . import notebook, snapshot
 from .render import View, flatten, format_value, truncate
-from .store import RunRecord, read_json
+from .store import RunRecord, read_json, read_jsonl
 
 PACKAGE_LIMIT = 10
 
@@ -24,10 +25,14 @@ def diff_lines(a: RunRecord, b: RunRecord, view: View, objects: Path, full_code:
         ("env", env_changes(a, b)),
         ("metrics", metric_changes(a, b, view)),
     ]
+    cells = [read_jsonl(run.dir / notebook.CELLS_FILE) for run in (a, b)]
+    if any(cells):
+        sections.insert(1, ("cells", cell_changes(*cells, full_code)))
     for label, changes in sections:
         changes = changes or ["no changes"]
         lines.append(f"{label:<9}{changes[0]}")
-        lines.extend(change if label == "code" and full_code and i else f"{'':<9}{change}" for i, change in enumerate(changes[1:], 1))
+        full = full_code and label in ("code", "cells")
+        lines.extend(change if full and i else f"{'':<9}{change}" for i, change in enumerate(changes[1:], 1))
     return lines
 
 
@@ -42,6 +47,28 @@ def code_changes(a: RunRecord, b: RunRecord, objects: Path, full: bool) -> list[
     lines = [f"{path}  +{added} -{removed}" for path, added, removed, _ in changed]
     if lines:
         lines[-1] += "   (--code for the full diff)"
+    return lines
+
+
+def cell_changes(cells_a: list[dict], cells_b: list[dict], full: bool) -> list[str]:
+    """Compares the cells each notebook run actually ran, in the order it ran them."""
+    if not (cells_a and cells_b):
+        return ["only one of the runs is from a notebook"]
+    diff = list(difflib.unified_diff(_cell_text(cells_a), _cell_text(cells_b), "a/cells that ran", "b/cells that ran", lineterm=""))
+    if not diff:
+        return []
+    if full:
+        return ["full diff:", *diff]
+    added = sum(1 for line in diff if line.startswith("+") and not line.startswith("+++"))
+    removed = sum(1 for line in diff if line.startswith("-") and not line.startswith("---"))
+    return [f"{len(cells_a)} -> {len(cells_b)} cells ran  +{added} -{removed}   (--code for the full diff)"]
+
+
+def _cell_text(cells: list[dict]) -> list[str]:
+    lines = []
+    for cell in cells:
+        lines.append("# %%")
+        lines.extend(str(cell.get("source", "")).splitlines())
     return lines
 
 

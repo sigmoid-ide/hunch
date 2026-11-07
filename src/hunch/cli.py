@@ -9,7 +9,7 @@ import sys
 from . import __version__, milestones
 from .diff import diff_lines
 from .render import (
-    RAMP, View, can_encode, log_lines, ls_lines, milestone_lines, milestone_show_lines, run_counts, show_lines, visible,
+    RAMP, View, can_encode, cell_lines, log_lines, ls_lines, milestone_lines, milestone_show_lines, run_counts, show_lines, visible,
 )
 from .runner import run_command
 from .store import HunchError, Store
@@ -62,6 +62,7 @@ def _parser() -> argparse.ArgumentParser:
 
     show = commands.add_parser("show", help="show everything about one run or milestone (M3)")
     show.add_argument("run")
+    show.add_argument("--cells", action="store_true", help="for a notebook run, the cells it ran, in order")
     show.set_defaults(handler=cmd_show)
 
     milestone = commands.add_parser("milestone", help="save a milestone: the runs since the previous one, summed up")
@@ -170,6 +171,8 @@ def cmd_show(args) -> int:
         saved = milestones.milestones(store)
         milestone = milestones.resolve(store, args.run, saved)
         lines = milestone_show_lines(milestone, milestones.numbers(saved)[milestone.id], runs, _view(store, runs), store.root)
+    elif args.cells:
+        lines = cell_lines(store.resolve(args.run, runs))
     else:
         lines = show_lines(store.resolve(args.run, runs), _view(store, runs), store.root)
     for line in lines:

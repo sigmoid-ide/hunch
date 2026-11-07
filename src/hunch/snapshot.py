@@ -3,7 +3,7 @@
 Each file is stored once in .hunch/objects as a git blob object (zlib-compressed
 "blob <size>\\0<content>", named by its SHA-1), so identical files across runs
 cost nothing and a later `hunch push` can hand them to git unchanged. Each run
-lists its files in files.json.
+lists its files in files.json. Notebooks are saved without their outputs.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import threading
 import zlib
 from pathlib import Path
 
+from . import notebook
 from .gitinfo import git
 
 FILE_LIMIT = 1024 * 1024
@@ -52,15 +53,20 @@ def take(root: Path, objects: Path) -> dict:
             info = path.lstat()
         except OSError:
             continue  # listed by git but deleted from disk
+        # Notebooks are saved without their outputs, so only the stripped size counts.
+        is_notebook = rel.endswith(".ipynb")
+        size_limit = notebook.STRIP_LIMIT if is_notebook else FILE_LIMIT
         # A symlink's target may be outside the project, such as a credentials file.
-        if path.is_symlink() or info.st_size > FILE_LIMIT or total + info.st_size > TOTAL_LIMIT or len(files) >= COUNT_LIMIT:
+        if path.is_symlink() or info.st_size > size_limit or len(files) >= COUNT_LIMIT:
             skipped.append(rel)
             continue
         try:
             data = path.read_bytes()
         except OSError:
             continue
-        if b"\0" in data[:8192]:  # binary
+        if is_notebook:
+            data = notebook.strip_outputs(data)
+        if len(data) > FILE_LIMIT or total + len(data) > TOTAL_LIMIT or b"\0" in data[:8192]:  # too big, or binary
             skipped.append(rel)
             continue
         files[rel] = {"sha": store_object(objects, data), "size": len(data)}
@@ -107,8 +113,8 @@ def changes(objects: Path, before: dict, after: dict) -> list[tuple[str, int, in
         old, new = before.get(path), after.get(path)
         if old and new and old["sha"] == new["sha"]:
             continue
-        old_lines = _lines(objects, old)
-        new_lines = _lines(objects, new)
+        old_lines = _lines(objects, old, path)
+        new_lines = _lines(objects, new, path)
         diff = list(difflib.unified_diff(
             old_lines, new_lines,
             fromfile=f"a/{path}" if old else "/dev/null",
@@ -121,12 +127,16 @@ def changes(objects: Path, before: dict, after: dict) -> list[tuple[str, int, in
     return out
 
 
-def _lines(objects: Path, entry: dict | None) -> list[str]:
+def _lines(objects: Path, entry: dict | None, path: str) -> list[str]:
     if entry is None:
         return []
     data = read_object(objects, entry["sha"])
     if data is None:
         return ["(missing from .hunch/objects)"]
+    if path.endswith(".ipynb"):  # the cells' code, not the notebook's JSON
+        cells = notebook.cell_lines(data)
+        if cells is not None:
+            return cells
     return data.decode("utf-8", "replace").splitlines()
 
 

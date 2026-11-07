@@ -37,5 +37,6 @@ module-name = "hunch"
 
 [dependency-groups]
 dev = [
+    "ipython>=9.18.1",
     "pytest>=9.2.0",
 ]

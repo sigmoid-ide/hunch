@@ -7,8 +7,9 @@ import shlex
 from collections import Counter
 from pathlib import Path
 
+from .notebook import CELLS_FILE
 from .runner import format_duration
-from .store import RunRecord, downsample, read_json
+from .store import RunRecord, downsample, read_json, read_jsonl
 
 RAMP = "▁▂▃▄▅▆▇█"
 RAMP_ASCII = "_.-:=+*#"
@@ -321,6 +322,11 @@ def show_lines(run: RunRecord, view: View, root: Path) -> list[str]:
         add("code", text)
     else:
         add("code", "not saved (recorded before Hunch 0.2)")
+    cells = read_jsonl(run.dir / CELLS_FILE)
+    if cells:
+        failed = sum(1 for cell in cells if cell.get("error"))
+        text = f"{plural(len(cells), 'cell')} ran in the notebook" + (f", {failed} failed" if failed else "")
+        add("cells", f"{text}   (hunch show {view.short.get(run.id, run.id)} --cells)")
     if code:
         commit = (code.get("commit") or "")[:9] or "no commits yet"
         dirty = ", with uncommitted changes" if code.get("dirty") else ""
@@ -369,6 +375,19 @@ def show_lines(run: RunRecord, view: View, root: Path) -> list[str]:
         folder = run.dir
     add("folder", str(folder))
     return lines
+
+
+def cell_lines(run: RunRecord) -> list[str]:
+    """The cells a notebook run ran, in the order the kernel ran them."""
+    cells = read_jsonl(run.dir / CELLS_FILE)
+    if not cells:
+        return ["no notebook cells: this run did not start in a notebook"]
+    lines = []
+    for cell in cells:
+        lines.append(f"[{cell.get('n', '?')}]" + (f"  failed: {cell['error']}" if cell.get("error") else ""))
+        lines.extend(str(cell.get("source", "")).splitlines())
+        lines.append("")
+    return lines[:-1]
 
 
 def plural(count: int, word: str) -> str:
